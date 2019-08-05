@@ -7,9 +7,9 @@
  * @file intrapred_edge_filter_test.cc
  *
  * @brief Unit test for upsample and edge filter:
- * - av1_upsample_intra_edge_sse4_1
- * - av1_filter_intra_edge_sse4_1
- * - av1_filter_intra_edge_high_sse4_1
+ * - eb_av1_upsample_intra_edge_sse4_1
+ * - eb_av1_filter_intra_edge_sse4_1
+ * - eb_av1_filter_intra_edge_high_sse4_1
  *
  * @author Cidana-Wenyao
  *
@@ -30,7 +30,7 @@ using UPSAMPLE_LBD = void (*)(uint8_t *p, int size);
 /**
  * @brief Unit test for upsample in intra prediction specified in
  * spec 7.11.2.11:
- * - av1_upsample_intra_edge_sse4_1
+ * - eb_av1_upsample_intra_edge_sse4_1
  *
  * Test strategy:
  * Verify this assembly code by comparing with reference c implementation.
@@ -73,8 +73,8 @@ class UpsampleTest {
                 // When the process completes, entries -2 to 2*numPx-2
                 // are valid in buf;
                 const int max_idx = (numPx_ - 1) * 2;
-                for (int i = -2; i <= max_idx; ++i)
-                    ASSERT_EQ(edge_ref_[i], edge_tst_[i]);
+                for (int j = -2; j <= max_idx; ++j)
+                    ASSERT_EQ(edge_ref_[j], edge_tst_[j]);
             }
         }
     }
@@ -93,7 +93,7 @@ class UpsampleTest {
         // When the process starts, entries -1 to numPx-1 are valid in buf
         int i = 0;
         for (; i < start_offset + numPx_; ++i)
-            edge_ref_data_[i] = edge_tst_data_[i] = pix_rnd.random();
+            edge_ref_data_[i] = edge_tst_data_[i] = (Sample)pix_rnd.random();
 
         Sample last = edge_ref_data_[start_offset + numPx_ - 1];
         for (; i < edge_buf_size; ++i)
@@ -118,8 +118,8 @@ class UpsampleTest {
 class LowbdUpsampleTest : public UpsampleTest<uint8_t, UPSAMPLE_LBD> {
   public:
     LowbdUpsampleTest() {
-        ref_func_ = av1_upsample_intra_edge_c;
-        tst_func_ = av1_upsample_intra_edge_sse4_1;
+        ref_func_ = eb_av1_upsample_intra_edge_c;
+        tst_func_ = eb_av1_upsample_intra_edge_sse4_1;
         bd_ = 8;
         common_init();
     }
@@ -146,7 +146,7 @@ TEST_CLASS(UpsampleTestLBD, LowbdUpsampleTest)
 #define INTRA_EDGE_FILT 3
 #define INTRA_EDGE_TAPS 5
 #define MAX_UPSAMPLE_SZ 16
-static void av1_filter_intra_edge_c(uint8_t *p, int sz, int strength) {
+static void eb_av1_filter_intra_edge_c(uint8_t *p, int sz, int strength) {
     if (!strength)
         return;
 
@@ -165,7 +165,7 @@ static void av1_filter_intra_edge_c(uint8_t *p, int sz, int strength) {
             s += edge[k] * kernel[filt][j];
         }
         s = (s + 8) >> 4;
-        p[i] = s;
+        p[i] = (uint8_t)s;
     }
 }
 
@@ -174,8 +174,8 @@ using FILTER_EDGE_HBD = void (*)(uint16_t *p, int size, int strength);
 
 /**
  * @brief Unit test for edge filter in intra prediction:
- * - av1_filter_intra_edge_sse4_1
- * - av1_filter_intra_edge_high_sse4_1
+ * - eb_av1_filter_intra_edge_sse4_1
+ * - eb_av1_filter_intra_edge_high_sse4_1
  *
  * Test strategy:
  * Verify this assembly code by comparing with reference c implementation.
@@ -236,7 +236,7 @@ class FilterEdgeTest {
     void prepare_data(SVTRandom &pix_rnd) {
         int i = 0;
         for (; i < start_offset + numPx_; ++i)
-            edge_ref_data_[i] = edge_tst_data_[i] = pix_rnd.random();
+            edge_ref_data_[i] = edge_tst_data_[i] = (Sample)pix_rnd.random();
     }
 
     void run_filter_edge() {
@@ -260,8 +260,8 @@ class FilterEdgeTest {
 class LowbdFilterEdgeTest : public FilterEdgeTest<uint8_t, FILTER_EDGE_LBD> {
   public:
     LowbdFilterEdgeTest() {
-        ref_func_ = av1_filter_intra_edge_c;
-        tst_func_ = av1_filter_intra_edge_sse4_1;
+        ref_func_ = eb_av1_filter_intra_edge_c;
+        tst_func_ = eb_av1_filter_intra_edge_sse4_1;
         bd_ = 8;
         common_init();
     }
@@ -270,8 +270,8 @@ class LowbdFilterEdgeTest : public FilterEdgeTest<uint8_t, FILTER_EDGE_LBD> {
 class HighbdFilterEdgeTest : public FilterEdgeTest<uint16_t, FILTER_EDGE_HBD> {
   public:
     HighbdFilterEdgeTest() {
-        ref_func_ = av1_filter_intra_edge_high_c;
-        tst_func_ = av1_filter_intra_edge_high_sse4_1;
+        ref_func_ = eb_av1_filter_intra_edge_high_c;
+        tst_func_ = eb_av1_filter_intra_edge_high_sse4_1;
         bd_ = 10;
         common_init();
     }

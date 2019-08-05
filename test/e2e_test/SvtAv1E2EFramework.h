@@ -128,6 +128,7 @@ class SvtAv1E2ETestFramework : public ::testing::TestWithParam<EncTestSetting> {
 
   public:
     static VideoSource *prepare_video_src(const TestVideoVector &vector);
+    static EbColorFormat setup_video_format(VideoColorFormat fmt);
     static void setup_src_param(const VideoSource *source,
                                 EbSvtAv1EncConfiguration &config);
     /** get reconstructed frame from encoder, it should call after send data
@@ -186,6 +187,10 @@ class SvtAv1E2ETestFramework : public ::testing::TestWithParam<EncTestSetting> {
                                    on disk */
     bool
         enable_analyzer; /**< flag to control if create decoder with analyzer */
+    bool enable_config;  /**< flag to control if use configuratio of encoder
+                            params */
+    bool enable_invert_tile_decoding;
+    void *enc_config_; /**< handle of encoder configuration data structure */
 };
 
 }  // namespace svt_av1_e2e_test

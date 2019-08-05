@@ -9,6 +9,7 @@
 #include "EbDefinitions.h"
 #include "EbMdRateEstimation.h"
 #include "EbCodingUnit.h"
+#include "EbObject.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -269,6 +270,7 @@ extern "C" {
 
     typedef struct IntraReferenceSamplesOpenLoop
     {
+        EbDctor                  dctor;
         uint8_t                  *y_intra_reference_array;
         uint8_t                  *y_intra_reference_array_reverse;
 
@@ -294,6 +296,7 @@ extern "C" {
 
     typedef struct MeContext
     {
+        EbDctor                       dctor;
         // Search region stride
         uint32_t                      interpolated_stride;
         uint32_t                      interpolated_full_stride[MAX_NUM_OF_REF_PIC_LIST][MAX_REF_IDX];
@@ -345,9 +348,9 @@ extern "C" {
         uint32_t                     *p_best_mv8x32;
         uint32_t                     *p_best_mv64x16;
         uint32_t                     *p_best_mv16x64;
-        uint32_t                      p_sad32x32[4];
-        uint32_t                      p_sad16x16[16];
-        uint32_t                      p_sad8x8[64];
+        EB_ALIGN(16) uint32_t         p_sad32x32[4];
+        EB_ALIGN(64) uint32_t         p_sad16x16[16];
+        EB_ALIGN(64) uint32_t         p_sad8x8[64];
 
         uint8_t                       psub_pel_direction64x64;
         uint8_t                       psub_pel_direction32x32[4];
@@ -405,9 +408,9 @@ extern "C" {
         uint8_t                     *p_best_nsq32x32;
         uint8_t                     *p_best_nsq64x64;
         uint16_t                     *p_eight_pos_sad16x16;
-        uint32_t                      p_eight_sad32x32[4][8];
-        uint32_t                      p_eight_sad16x16[16][8];
-        uint32_t                      p_eight_sad8x8[64][8];
+        EB_ALIGN(64) uint32_t         p_eight_sad32x32[4][8];
+        EB_ALIGN(64) uint32_t         p_eight_sad16x16[16][8];
+        EB_ALIGN(64) uint32_t         p_eight_sad8x8[64][8];
         EbBitFraction               *mvd_bits_array;
         uint64_t                      lambda;
         uint8_t                       hme_search_type;
@@ -454,6 +457,7 @@ extern "C" {
 
     typedef struct SsMeContext
     {
+        EbDctor                       dctor;
         // Search region stride
         uint32_t                      interpolated_stride;
         uint32_t                      interpolated_full_stride[MAX_NUM_OF_REF_PIC_LIST][MAX_REF_IDX];
@@ -615,7 +619,7 @@ extern "C" {
         uint32_t                     height);
 
     extern EbErrorType me_context_ctor(
-        MeContext     **object_dbl_ptr,
+        MeContext     *object_ptr,
         uint16_t        max_input_luma_width,
         uint16_t        max_input_luma_height,
         uint8_t         nsq_present,

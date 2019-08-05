@@ -93,8 +93,10 @@ class RefDecoder {
         std::vector<int> frame_type_list;
         uint32_t profile;
         int monochrome;  // Monochorme video
-        int bit_depth;
+        VideoColorFormat format;
+        uint32_t bit_depth;
         uint32_t sb_size;
+        bool still_pic;
         /* coding options */
         int force_integer_mv;
         int enable_filter_intra;
@@ -107,6 +109,7 @@ class RefDecoder {
         int enable_cdef;
         int enable_restoration;
         int film_grain_params_present;
+        int enable_superres;
 
         uint32_t tile_rows;
         uint32_t tile_cols;
@@ -114,16 +117,19 @@ class RefDecoder {
         uint32_t
             ext_block_flag; /**< if contains extended block, 0--no, 1--yes */
         std::vector<uint32_t> qindex_list;
-        uint32_t max_qindex;
-        uint32_t min_qindex;
-        uint32_t max_intra_period;
+        int16_t max_qindex;
+        int16_t min_qindex;
+        int32_t max_intra_period;
+        uint32_t frame_bit_rate;
         StreamInfo() {
+            format = IMG_FMT_420;
             tile_rows = 0;
             tile_cols = 0;
             min_block_size = 128;
             ext_block_flag = 0;
             max_qindex = 0;
             min_qindex = 255;
+            frame_bit_rate = 0;
             frame_type_list.clear();
             qindex_list.clear();
         }
@@ -172,6 +178,9 @@ class RefDecoder {
      * @param height  height of source video frame
      */
     void set_resolution(const uint32_t width, const uint32_t height);
+
+    void set_invert_tile_decoding_order();
+    void control(int ctrl_id, int arg);
 
   private:
     /** Tool of translation from AOM image info to a video frame

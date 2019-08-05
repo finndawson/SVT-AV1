@@ -7,7 +7,7 @@
  * @file FwdTxfm2dAsmTest.c
  *
  * @brief Unit test for forward 2d transform functions written in assembly code:
- * - av1_fwd_txfm2d_{4, 8, 16, 32, 64}x{4, 8, 16, 32, 64}_avx2
+ * - eb_av1_fwd_txfm2d_{4, 8, 16, 32, 64}x{4, 8, 16, 32, 64}_avx2
  *
  * @author Cidana-Wenyao
  *
@@ -40,21 +40,21 @@ using svt_av1_test_tool::SVTRandom;
 namespace {
 using FwdTxfm2dAsmParam = std::tuple<int, int>;
 static const FwdTxfm2dFunc fwd_txfm_2d_asm_func[TX_SIZES_ALL] = {
-    av1_fwd_txfm2d_4x4_sse4_1, av1_fwd_txfm2d_8x8_avx2,
-    av1_fwd_txfm2d_16x16_avx2, av1_fwd_txfm2d_32x32_avx2,
-    av1_fwd_txfm2d_64x64_avx2, av1_fwd_txfm2d_4x8_avx2,
-    av1_fwd_txfm2d_8x4_avx2,   av1_fwd_txfm2d_8x16_avx2,
-    av1_fwd_txfm2d_16x8_avx2,  av1_fwd_txfm2d_16x32_avx2,
-    av1_fwd_txfm2d_32x16_avx2, av1_fwd_txfm2d_32x64_avx2,
-    av1_fwd_txfm2d_64x32_avx2, av1_fwd_txfm2d_4x16_avx2,
-    av1_fwd_txfm2d_16x4_avx2,  av1_fwd_txfm2d_8x32_avx2,
-    av1_fwd_txfm2d_32x8_avx2,  av1_fwd_txfm2d_16x64_avx2,
-    av1_fwd_txfm2d_64x16_avx2,
+    eb_av1_fwd_txfm2d_4x4_sse4_1, eb_av1_fwd_txfm2d_8x8_avx2,
+    eb_av1_fwd_txfm2d_16x16_avx2, eb_av1_fwd_txfm2d_32x32_avx2,
+    eb_av1_fwd_txfm2d_64x64_avx2, eb_av1_fwd_txfm2d_4x8_avx2,
+    eb_av1_fwd_txfm2d_8x4_avx2,   eb_av1_fwd_txfm2d_8x16_avx2,
+    eb_av1_fwd_txfm2d_16x8_avx2,  eb_av1_fwd_txfm2d_16x32_avx2,
+    eb_av1_fwd_txfm2d_32x16_avx2, eb_av1_fwd_txfm2d_32x64_avx2,
+    eb_av1_fwd_txfm2d_64x32_avx2, eb_av1_fwd_txfm2d_4x16_avx2,
+    eb_av1_fwd_txfm2d_16x4_avx2,  eb_av1_fwd_txfm2d_8x32_avx2,
+    eb_av1_fwd_txfm2d_32x8_avx2,  eb_av1_fwd_txfm2d_16x64_avx2,
+    eb_av1_fwd_txfm2d_64x16_avx2,
 };
 
 /**
  * @brief Unit test for fwd tx 2d avx2 functions:
- * - av1_fwd_txfm2d_{4, 8, 16, 32, 64}x{4, 8, 16, 32, 64}_avx2
+ * - eb_av1_fwd_txfm2d_{4, 8, 16, 32, 64}x{4, 8, 16, 32, 64}_avx2
  *
  * Test strategy:
  * Verify this assembly code by comparing with reference c implementation.
@@ -114,8 +114,8 @@ class FwdTxfm2dAsmTest : public ::testing::TestWithParam<FwdTxfm2dAsmParam> {
             for (int k = 0; k < loops; k++) {
                 populate_with_random();
 
-                ref_func(input_, output_ref_, stride_, type, bd_);
-                test_func(input_, output_test_, stride_, type, bd_);
+                ref_func(input_, output_ref_, stride_, type, (uint8_t)bd_);
+                test_func(input_, output_test_, stride_, type, (uint8_t)bd_);
 
                 for (int i = 0; i < height_; i++)
                     for (int j = 0; j < width_; j++)
@@ -132,7 +132,7 @@ class FwdTxfm2dAsmTest : public ::testing::TestWithParam<FwdTxfm2dAsmParam> {
     void populate_with_random() {
         for (int i = 0; i < height_; i++) {
             for (int j = 0; j < width_; j++) {
-                input_[i * stride_ + j] = rnd_->random();
+                input_[i * stride_ + j] = (int16_t)rnd_->random();
             }
         }
 

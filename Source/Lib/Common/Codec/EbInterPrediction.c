@@ -25,16 +25,23 @@
 #include "EbAdaptiveMotionVectorPrediction.h"
 
 #include "EbModeDecisionProcess.h"
-#include <smmintrin.h> /* SSE4.1 */
 
 #include "convolve.h"
 #include "aom_dsp_rtcd.h"
+
+#define SCALE_REF_FRAME 0 //TODO: Add Support for scaling of reference frame
 
 #define MVBOUNDLOW    36    //  (80-71)<<2 // 80 = ReferencePadding ; minus 71 is derived from the expression -64 + 1 - 8, and plus 7 is derived from expression -1 + 8
 #define MVBOUNDHIGH   348   //  (80+7)<<2
 #define REFPADD_QPEL  320   //  (16+64)<<2
 
 #define AOM_INTERP_EXTEND 4
+
+#define SCALE_NUMERATOR 8
+
+#define REF_SCALE_SHIFT 14
+#define REF_NO_SCALE (1 << REF_SCALE_SHIFT)
+#define REF_INVALID_SCALE -1
 
 #define SCALE_SUBPEL_BITS 10
 #define SCALE_SUBPEL_SHIFTS (1 << SCALE_SUBPEL_BITS)
@@ -54,12 +61,94 @@
 #define ROUND0_BITS 3
 #define COMPOUND_ROUND1_BITS 7
 
-typedef struct SubpelParams {
-    int32_t xs;
-    int32_t ys;
-    int32_t subpel_x;
-    int32_t subpel_y;
-} SubpelParams;
+#if SCALE_REF_FRAME
+/* TODO: Add scaling of reference frame support later */
+// Note: Expect val to be in q4 precision
+static INLINE int32_t scaled_x(int32_t val, ScaleFactors *sf) {
+    const int off =
+        (sf->x_scale_fp - (1 << REF_SCALE_SHIFT)) * (1 << (SUBPEL_BITS - 1));
+    const int64_t tval = (int64_t)val * sf->x_scale_fp + off;
+    return (int)ROUND_POWER_OF_TWO_SIGNED_64(tval,
+        REF_SCALE_SHIFT - SCALE_EXTRA_BITS);
+}
+
+// Note: Expect val to be in q4 precision
+static INLINE int32_t scaled_y(int32_t val, const ScaleFactors *sf) {
+    const int32_t off =
+        (sf->y_scale_fp - (1 << REF_SCALE_SHIFT)) * (1 << (SUBPEL_BITS - 1));
+    const int64_t tval = (int64_t)val * sf->y_scale_fp + off;
+    return (int32_t)ROUND_POWER_OF_TWO_SIGNED_64(tval,
+        REF_SCALE_SHIFT - SCALE_EXTRA_BITS);
+}
+
+// Note: Expect val to be in q4 precision
+static int32_t unscaled_value(int32_t val, const ScaleFactors *sf) {
+    (void)sf;
+    return val << SCALE_EXTRA_BITS;
+}
+
+static int32_t get_fixed_point_scale_factor(int32_t other_size, int32_t this_size) {
+    // Calculate scaling factor once for each reference frame
+    // and use fixed point scaling factors in decoding and encoding routines.
+    // Hardware implementations can calculate scale factor in device driver
+    // and use multiplication and shifting on hardware instead of division.
+    return ((other_size << REF_SCALE_SHIFT) + this_size / 2) / this_size;
+}
+
+// Given the fixed point scale, calculate coarse point scale.
+static int32_t fixed_point_scale_to_coarse_point_scale(int32_t scale_fp) {
+    return ROUND_POWER_OF_TWO(scale_fp, REF_SCALE_SHIFT - SCALE_SUBPEL_BITS);
+}
+
+// Note: x and y are integer precision, mvq4 is q4 precision.
+MV32 av1_scale_mv(const MV *mvq4, int x, int y,
+    const struct scale_factors *sf) {
+    const int x_off_q4 = scaled_x(x << SUBPEL_BITS, sf);
+    const int y_off_q4 = scaled_y(y << SUBPEL_BITS, sf);
+    const MV32 res = { scaled_y((y << SUBPEL_BITS) + mvq4->row, sf) - y_off_q4,
+        scaled_x((x << SUBPEL_BITS) + mvq4->col, sf) - x_off_q4 };
+    return res;
+}
+
+void av1_setup_scale_factors_for_frame(ScaleFactors *sf, int other_w,
+    int other_h, int this_w, int this_h) {
+    if (!valid_ref_frame_size(other_w, other_h, this_w, this_h)) {
+        sf->x_scale_fp = REF_INVALID_SCALE;
+        sf->y_scale_fp = REF_INVALID_SCALE;
+        return;
+    }
+
+    sf->x_scale_fp = get_fixed_point_scale_factor(other_w, this_w);
+    sf->y_scale_fp = get_fixed_point_scale_factor(other_h, this_h);
+
+    sf->x_step_q4 = fixed_point_scale_to_coarse_point_scale(sf->x_scale_fp);
+    sf->y_step_q4 = fixed_point_scale_to_coarse_point_scale(sf->y_scale_fp);
+
+    if (av1_is_scaled(sf)) {
+        sf->scale_value_x = scaled_x;
+        sf->scale_value_y = scaled_y;
+    }
+    else {
+        sf->scale_value_x = unscaled_value;
+        sf->scale_value_y = unscaled_value;
+    }
+}
+
+static INLINE int32_t has_scale(int32_t xs, int32_t ys) {
+    return xs != SCALE_SUBPEL_SHIFTS || ys != SCALE_SUBPEL_SHIFTS;
+}
+
+static INLINE void revert_scale_extra_bits(SubpelParams *sp) {
+    sp->subpel_x >>= SCALE_EXTRA_BITS;
+    sp->subpel_y >>= SCALE_EXTRA_BITS;
+    sp->xs >>= SCALE_EXTRA_BITS;
+    sp->ys >>= SCALE_EXTRA_BITS;
+    assert(sp->subpel_x < SUBPEL_SHIFTS);
+    assert(sp->subpel_y < SUBPEL_SHIFTS);
+    assert(sp->xs <= SUBPEL_SHIFTS);
+    assert(sp->ys <= SUBPEL_SHIFTS);
+}
+#endif //SCALE_REF_FRAME
 
 //extern INLINE void clamp_mv(MV *mv, int32_t min_col, int32_t max_col, int32_t min_row,int32_t max_row);
 
@@ -121,7 +210,7 @@ sub_pel_filters_4[SUBPEL_SHIFTS]) = {
 
 #define MAX_FILTER_TAP 8
 
-void av1_convolve_2d_sr_c(const uint8_t *src, int32_t src_stride, uint8_t *dst,
+void eb_av1_convolve_2d_sr_c(const uint8_t *src, int32_t src_stride, uint8_t *dst,
     int32_t dst_stride, int32_t w, int32_t h,
     InterpFilterParams *filter_params_x,
     InterpFilterParams *filter_params_y,
@@ -171,7 +260,7 @@ void av1_convolve_2d_sr_c(const uint8_t *src, int32_t src_stride, uint8_t *dst,
     }
 }
 
-void av1_convolve_y_sr_c(const uint8_t *src, int32_t src_stride, uint8_t *dst,
+void eb_av1_convolve_y_sr_c(const uint8_t *src, int32_t src_stride, uint8_t *dst,
     int32_t dst_stride, int32_t w, int32_t h,
     InterpFilterParams *filter_params_x,
     InterpFilterParams *filter_params_y,
@@ -203,7 +292,7 @@ void av1_convolve_y_sr_c(const uint8_t *src, int32_t src_stride, uint8_t *dst,
     }
 }
 
-void av1_convolve_x_sr_c(const uint8_t *src, int32_t src_stride, uint8_t *dst,
+void eb_av1_convolve_x_sr_c(const uint8_t *src, int32_t src_stride, uint8_t *dst,
     int32_t dst_stride, int32_t w, int32_t h,
     InterpFilterParams *filter_params_x,
     InterpFilterParams *filter_params_y,
@@ -235,7 +324,7 @@ void av1_convolve_x_sr_c(const uint8_t *src, int32_t src_stride, uint8_t *dst,
     }
 }
 
-void av1_convolve_2d_copy_sr_c(const uint8_t *src, int32_t src_stride, uint8_t *dst,
+void eb_av1_convolve_2d_copy_sr_c(const uint8_t *src, int32_t src_stride, uint8_t *dst,
     int32_t dst_stride, int32_t w, int32_t h,
     InterpFilterParams *filter_params_x,
     InterpFilterParams *filter_params_y,
@@ -253,7 +342,7 @@ void av1_convolve_2d_copy_sr_c(const uint8_t *src, int32_t src_stride, uint8_t *
     }
 }
 
-void av1_jnt_convolve_2d_c(const uint8_t *src, int32_t src_stride, uint8_t *dst8,
+void eb_av1_jnt_convolve_2d_c(const uint8_t *src, int32_t src_stride, uint8_t *dst8,
     int32_t dst8_stride, int32_t w, int32_t h,
     InterpFilterParams *filter_params_x,
     InterpFilterParams *filter_params_y,
@@ -319,7 +408,7 @@ void av1_jnt_convolve_2d_c(const uint8_t *src, int32_t src_stride, uint8_t *dst8
     }
 }
 
-void av1_jnt_convolve_y_c(const uint8_t *src, int32_t src_stride, uint8_t *dst8,
+void eb_av1_jnt_convolve_y_c(const uint8_t *src, int32_t src_stride, uint8_t *dst8,
     int32_t dst8_stride, int32_t w, int32_t h,
     InterpFilterParams *filter_params_x,
     InterpFilterParams *filter_params_y,
@@ -370,7 +459,7 @@ void av1_jnt_convolve_y_c(const uint8_t *src, int32_t src_stride, uint8_t *dst8,
     }
 }
 
-void av1_jnt_convolve_x_c(const uint8_t *src, int32_t src_stride, uint8_t *dst8,
+void eb_av1_jnt_convolve_x_c(const uint8_t *src, int32_t src_stride, uint8_t *dst8,
     int32_t dst8_stride, int32_t w, int32_t h,
     InterpFilterParams *filter_params_x,
     InterpFilterParams *filter_params_y,
@@ -421,7 +510,7 @@ void av1_jnt_convolve_x_c(const uint8_t *src, int32_t src_stride, uint8_t *dst8,
     }
 }
 
-void av1_jnt_convolve_2d_copy_c(const uint8_t *src, int32_t src_stride,
+void eb_av1_jnt_convolve_2d_copy_c(const uint8_t *src, int32_t src_stride,
     uint8_t *dst8, int32_t dst8_stride, int32_t w, int32_t h,
     InterpFilterParams *filter_params_x,
     InterpFilterParams *filter_params_y,
@@ -465,7 +554,7 @@ void av1_jnt_convolve_2d_copy_c(const uint8_t *src, int32_t src_stride,
     }
 }
 
-void av1_highbd_convolve_2d_copy_sr_c(
+void eb_av1_highbd_convolve_2d_copy_sr_c(
     const uint16_t *src, int32_t src_stride, uint16_t *dst, int32_t dst_stride, int32_t w,
     int32_t h, const InterpFilterParams *filter_params_x,
     const InterpFilterParams *filter_params_y, const int32_t subpel_x_q4,
@@ -483,7 +572,7 @@ void av1_highbd_convolve_2d_copy_sr_c(
     }
 }
 
-void av1_highbd_convolve_x_sr_c(const uint16_t *src, int32_t src_stride,
+void eb_av1_highbd_convolve_x_sr_c(const uint16_t *src, int32_t src_stride,
     uint16_t *dst, int32_t dst_stride, int32_t w, int32_t h,
     const InterpFilterParams *filter_params_x,
     const InterpFilterParams *filter_params_y,
@@ -513,7 +602,7 @@ void av1_highbd_convolve_x_sr_c(const uint16_t *src, int32_t src_stride,
     }
 }
 
-void av1_highbd_convolve_y_sr_c(const uint16_t *src, int32_t src_stride,
+void eb_av1_highbd_convolve_y_sr_c(const uint16_t *src, int32_t src_stride,
     uint16_t *dst, int32_t dst_stride, int32_t w, int32_t h,
     const InterpFilterParams *filter_params_x,
     const InterpFilterParams *filter_params_y,
@@ -542,7 +631,7 @@ void av1_highbd_convolve_y_sr_c(const uint16_t *src, int32_t src_stride,
     }
 }
 
-void av1_highbd_convolve_2d_sr_c(const uint16_t *src, int32_t src_stride,
+void eb_av1_highbd_convolve_2d_sr_c(const uint16_t *src, int32_t src_stride,
     uint16_t *dst, int32_t dst_stride, int32_t w, int32_t h,
     const InterpFilterParams *filter_params_x,
     const InterpFilterParams *filter_params_y,
@@ -592,7 +681,7 @@ void av1_highbd_convolve_2d_sr_c(const uint16_t *src, int32_t src_stride,
     }
 }
 
-void av1_highbd_jnt_convolve_x_c(const uint16_t *src, int32_t src_stride,
+void eb_av1_highbd_jnt_convolve_x_c(const uint16_t *src, int32_t src_stride,
     uint16_t *dst16, int32_t dst16_stride, int32_t w,
     int32_t h, const InterpFilterParams *filter_params_x,
     const InterpFilterParams *filter_params_y,
@@ -642,7 +731,7 @@ void av1_highbd_jnt_convolve_x_c(const uint16_t *src, int32_t src_stride,
     }
 }
 
-void av1_highbd_jnt_convolve_y_c(const uint16_t *src, int32_t src_stride,
+void eb_av1_highbd_jnt_convolve_y_c(const uint16_t *src, int32_t src_stride,
     uint16_t *dst16, int32_t dst16_stride, int32_t w,
     int32_t h, const InterpFilterParams *filter_params_x,
     const InterpFilterParams *filter_params_y,
@@ -692,7 +781,7 @@ void av1_highbd_jnt_convolve_y_c(const uint16_t *src, int32_t src_stride,
     }
 }
 
-void av1_highbd_jnt_convolve_2d_copy_c(
+void eb_av1_highbd_jnt_convolve_2d_copy_c(
     const uint16_t *src, int32_t src_stride, uint16_t *dst16, int32_t dst16_stride,
     int32_t w, int32_t h, const InterpFilterParams *filter_params_x,
     const InterpFilterParams *filter_params_y, const int32_t subpel_x_q4,
@@ -734,7 +823,7 @@ void av1_highbd_jnt_convolve_2d_copy_c(
     }
 }
 
-void av1_highbd_jnt_convolve_2d_c(const uint16_t *src, int32_t src_stride,
+void eb_av1_highbd_jnt_convolve_2d_c(const uint16_t *src, int32_t src_stride,
     uint16_t *dst16, int32_t dst16_stride, int32_t w,
     int32_t h, const InterpFilterParams *filter_params_x,
     const InterpFilterParams *filter_params_y,
@@ -807,33 +896,33 @@ void av1_highbd_jnt_convolve_2d_c(const uint16_t *src, int32_t src_stride,
 aom_highbd_convolve_fn_t convolveHbd[/*subX*/2][/*subY*/2][/*bi*/2];
 void asmSetConvolveHbdAsmTable(void)
 {
-    convolveHbd[0][0][0] = av1_highbd_convolve_2d_copy_sr;
-    convolveHbd[0][0][1] = av1_highbd_jnt_convolve_2d_copy;
+    convolveHbd[0][0][0] = eb_av1_highbd_convolve_2d_copy_sr;
+    convolveHbd[0][0][1] = eb_av1_highbd_jnt_convolve_2d_copy;
 
-    convolveHbd[0][1][0] = av1_highbd_convolve_y_sr;
-    convolveHbd[0][1][1] = av1_highbd_jnt_convolve_y;
+    convolveHbd[0][1][0] = eb_av1_highbd_convolve_y_sr;
+    convolveHbd[0][1][1] = eb_av1_highbd_jnt_convolve_y;
 
-    convolveHbd[1][0][0] = av1_highbd_convolve_x_sr;
-    convolveHbd[1][0][1] = av1_highbd_jnt_convolve_x;
+    convolveHbd[1][0][0] = eb_av1_highbd_convolve_x_sr;
+    convolveHbd[1][0][1] = eb_av1_highbd_jnt_convolve_x;
 
-    convolveHbd[1][1][0] = av1_highbd_convolve_2d_sr;
-    convolveHbd[1][1][1] = av1_highbd_jnt_convolve_2d;
+    convolveHbd[1][1][0] = eb_av1_highbd_convolve_2d_sr;
+    convolveHbd[1][1][1] = eb_av1_highbd_jnt_convolve_2d;
 }
 
 aom_convolve_fn_t convolve[/*subX*/2][/*subY*/2][/*bi*/2];
 void asmSetConvolveAsmTable(void)
 {
-    convolve[0][0][0] = av1_convolve_2d_copy_sr;
-    convolve[0][0][1] = av1_jnt_convolve_2d_copy;
+    convolve[0][0][0] = eb_av1_convolve_2d_copy_sr;
+    convolve[0][0][1] = eb_av1_jnt_convolve_2d_copy;
 
-    convolve[0][1][0] = av1_convolve_y_sr;
-    convolve[0][1][1] = av1_jnt_convolve_y;
+    convolve[0][1][0] = eb_av1_convolve_y_sr;
+    convolve[0][1][1] = eb_av1_jnt_convolve_y;
 
-    convolve[1][0][0] = av1_convolve_x_sr;
-    convolve[1][0][1] = av1_jnt_convolve_x;
+    convolve[1][0][0] = eb_av1_convolve_x_sr;
+    convolve[1][0][1] = eb_av1_jnt_convolve_x;
 
-    convolve[1][1][0] = av1_convolve_2d_sr;
-    convolve[1][1][1] = av1_jnt_convolve_2d;
+    convolve[1][1][0] = eb_av1_convolve_2d_sr;
+    convolve[1][1][1] = eb_av1_jnt_convolve_2d;
 }
 
 InterpFilterParams av1RegularFilter = { (const int16_t *)sub_pel_filters_8, SUBPEL_TAPS, SUBPEL_SHIFTS, EIGHTTAP_REGULAR };
@@ -946,15 +1035,15 @@ static void convolve_2d_for_intrabc(const uint8_t *src, int src_stride,
     const InterpFilterParams *filter_params_y =
         subpel_y_q4 ? &av1_intrabc_filter_params : NULL;
     if (subpel_x_q4 != 0 && subpel_y_q4 != 0) {
-        av1_convolve_2d_sr_c(src, src_stride, dst, dst_stride, w, h,
+        eb_av1_convolve_2d_sr_c(src, src_stride, dst, dst_stride, w, h,
             (InterpFilterParams *)filter_params_x, (InterpFilterParams *)filter_params_y, 0, 0, conv_params);
     }
     else if (subpel_x_q4 != 0) {
-        av1_convolve_x_sr_c(src, src_stride, dst, dst_stride, w, h, (InterpFilterParams *)filter_params_x,
+        eb_av1_convolve_x_sr_c(src, src_stride, dst, dst_stride, w, h, (InterpFilterParams *)filter_params_x,
             (InterpFilterParams *)filter_params_y, 0, 0, conv_params);
     }
     else {
-        av1_convolve_y_sr_c(src, src_stride, dst, dst_stride, w, h, (InterpFilterParams *)filter_params_x,
+        eb_av1_convolve_y_sr_c(src, src_stride, dst, dst_stride, w, h, (InterpFilterParams *)filter_params_x,
             (InterpFilterParams *)filter_params_y, 0, 0, conv_params);
     }
 }
@@ -969,21 +1058,111 @@ static void highbd_convolve_2d_for_intrabc(const uint16_t *src, int src_stride,
     const InterpFilterParams *filter_params_y =
         subpel_y_q4 ? &av1_intrabc_filter_params : NULL;
     if (subpel_x_q4 != 0 && subpel_y_q4 != 0) {
-        av1_highbd_convolve_2d_sr_c(src, src_stride, dst, dst_stride, w, h,
+        eb_av1_highbd_convolve_2d_sr_c(src, src_stride, dst, dst_stride, w, h,
             filter_params_x, filter_params_y, 0, 0,
             conv_params, bd);
     }
     else if (subpel_x_q4 != 0) {
-        av1_highbd_convolve_x_sr_c(src, src_stride, dst, dst_stride, w, h,
+        eb_av1_highbd_convolve_x_sr_c(src, src_stride, dst, dst_stride, w, h,
             filter_params_x, filter_params_y, 0, 0,
             conv_params, bd);
     }
     else {
-        av1_highbd_convolve_y_sr_c(src, src_stride, dst, dst_stride, w, h,
+        eb_av1_highbd_convolve_y_sr_c(src, src_stride, dst, dst_stride, w, h,
             filter_params_x, filter_params_y, 0, 0,
             conv_params, bd);
     }
 }
+
+void svt_inter_predictor(const uint8_t *src, int32_t src_stride,
+    uint8_t *dst, int32_t dst_stride, const SubpelParams *subpel_params,
+    const ScaleFactors *sf, int32_t w, int32_t h, ConvolveParams *conv_params,
+    InterpFilters interp_filters, int32_t is_intrabc) {
+
+    InterpFilterParams filter_params_x, filter_params_y;
+#if SCALE_REF_FRAME
+    const int32_t is_scaled = has_scale(subpel_params->xs, subpel_params->ys);
+#else
+    (void)sf;
+    const int32_t is_scaled = 0;
+#endif
+    av1_get_convolve_filter_params(interp_filters, &filter_params_x,
+        &filter_params_y, w, h);
+
+    assert(conv_params->do_average == 0 || conv_params->do_average == 1);
+    //assert(sf);
+    //assert(IMPLIES(is_intrabc, !is_scaled));
+    if (is_scaled) {
+#if SCALE_REF_FRAME
+        /* TODO: Add suppport for scaling later */
+        eb_av1_convolve_2d_scale(src, src_stride, dst, dst_stride, w, h,
+            interp_filters, subpel_params->subpel_x,
+            subpel_params->xs, subpel_params->subpel_y,
+            subpel_params->ys, 1, conv_params, sf, is_intrabc);
+#endif
+    }
+    else {
+        SubpelParams sp = *subpel_params;
+#if SCALE_REF_FRAME
+        revert_scale_extra_bits(&sp);
+#endif
+        if (is_intrabc && (sp.subpel_x != 0 || sp.subpel_y != 0)) {
+            convolve_2d_for_intrabc(src, src_stride, dst, dst_stride, w, h, sp.subpel_x,
+                sp.subpel_y, conv_params);
+            return;
+        }
+
+        convolve[sp.subpel_x != 0][sp.subpel_y != 0][conv_params->is_compound](
+            src, src_stride, dst, dst_stride, w, h, &filter_params_x,
+            &filter_params_y, sp.subpel_x, sp.subpel_y, conv_params);
+    }
+}
+
+void svt_highbd_inter_predictor(const uint16_t *src, int32_t src_stride,
+    uint16_t *dst, int32_t dst_stride, const SubpelParams *subpel_params,
+    const ScaleFactors *sf, int32_t w, int32_t h, ConvolveParams *conv_params,
+    InterpFilters interp_filters, int32_t is_intrabc, int32_t bd) {
+
+    InterpFilterParams filter_params_x, filter_params_y;
+#if SCALE_REF_FRAME
+    const int32_t is_scaled = has_scale(subpel_params->xs, subpel_params->ys);
+#else
+    (void)sf;
+    const int32_t is_scaled = 0;
+#endif
+    av1_get_convolve_filter_params(interp_filters, &filter_params_x,
+        &filter_params_y, w, h);
+
+    assert(conv_params->do_average == 0 || conv_params->do_average == 1);
+    //assert(sf);
+    //assert(IMPLIES(is_intrabc, !is_scaled));
+    if (is_scaled) {
+#if SCALE_REF_FRAME
+        /* TODO: Add suppport for scaling later */
+        eb_av1_highbd_convolve_2d_scale(src, src_stride, dst, dst_stride, w, h,
+        interp_filters, subpel_params->subpel_x,
+        subpel_params->xs, subpel_params->subpel_y,
+        subpel_params->ys, 1, conv_params, sf, is_intrabc, bd);
+#endif
+    }
+    else {
+        SubpelParams sp = *subpel_params;
+#if SCALE_REF_FRAME
+        revert_scale_extra_bits(&sp);
+#endif
+
+        if (is_intrabc && (sp.subpel_x != 0 || sp.subpel_y != 0)) {
+            highbd_convolve_2d_for_intrabc(src, src_stride, dst, dst_stride, w, h, sp.subpel_x,
+                sp.subpel_y, conv_params, bd);
+            return;
+        }
+
+        convolveHbd[sp.subpel_x != 0][sp.subpel_y != 0][conv_params->is_compound](
+            src, src_stride, dst, dst_stride, w, h, &filter_params_x,
+            &filter_params_y, sp.subpel_x, sp.subpel_y, conv_params, bd);
+    }
+}
+
 EbErrorType av1_inter_prediction(
     PictureControlSet                    *picture_control_set_ptr,
     uint32_t                                interp_filters,
@@ -1902,7 +2081,7 @@ EbErrorType warped_motion_prediction(
         dst_stride = prediction_ptr->stride_y;
         conv_params = get_conv_params_no_round(0, 0, 0, NULL, 128, is_compound, EB_8BIT);
 
-        av1_warp_plane(
+        eb_av1_warp_plane(
             wm_params,
             (int) is16bit,
             bit_depth,
@@ -1933,7 +2112,7 @@ EbErrorType warped_motion_prediction(
             dst_stride = prediction_ptr->stride_cb;
             conv_params = get_conv_params_no_round(0, 0, 0, NULL, 64, is_compound, EB_8BIT);
 
-            av1_warp_plane(
+            eb_av1_warp_plane(
                 wm_params,
                 (int) is16bit,
                 bit_depth,
@@ -1960,7 +2139,7 @@ EbErrorType warped_motion_prediction(
 
             conv_params = get_conv_params_no_round(0, 0, 0, NULL, 64, is_compound, EB_8BIT);
 
-            av1_warp_plane(
+            eb_av1_warp_plane(
                 wm_params,
                 (int) is16bit,
                 bit_depth,
@@ -2238,7 +2417,7 @@ EbErrorType warped_motion_prediction_md(
     dst_stride = prediction_ptr->stride_y;
     conv_params = get_conv_params_no_round(0, 0, 0, NULL, 128, is_compound, EB_8BIT);
 
-    av1_warp_plane(
+    eb_av1_warp_plane(
         wm_params,
         0,  // int use_hbd
         8,  // int bd
@@ -2267,7 +2446,7 @@ EbErrorType warped_motion_prediction_md(
         dst_ptr = prediction_ptr->buffer_cb + (prediction_ptr->origin_x + ((dst_origin_x >> 3) << 3)) / 2 + (prediction_ptr->origin_y + ((dst_origin_y >> 3) << 3)) / 2 * prediction_ptr->stride_cb;
         dst_stride = prediction_ptr->stride_cb;
         conv_params = get_conv_params_no_round(0, 0, 0, NULL, 64, is_compound, EB_8BIT);
-        av1_warp_plane(
+        eb_av1_warp_plane(
             wm_params,
             0, // int use_hbd
             8, // int bd
@@ -2293,7 +2472,7 @@ EbErrorType warped_motion_prediction_md(
         dst_stride = prediction_ptr->stride_cr;
 
             conv_params = get_conv_params_no_round(0, 0, 0, NULL, 64, is_compound, EB_8BIT);
-        av1_warp_plane(
+        eb_av1_warp_plane(
             wm_params,
             0, // int use_hbd
             8, // int bd
@@ -2378,7 +2557,7 @@ EbErrorType warped_motion_prediction_md(
 }
 
 #define SWITCHABLE_INTERP_RATE_FACTOR 1
-extern int32_t av1_get_pred_context_switchable_interp(
+extern int32_t eb_av1_get_pred_context_switchable_interp(
     NeighborArrayUnit     *ref_frame_type_neighbor_array,
     MvReferenceFrame rf0,
     MvReferenceFrame rf1,
@@ -2388,7 +2567,7 @@ extern int32_t av1_get_pred_context_switchable_interp(
     int32_t dir
 );
 
-int32_t av1_get_switchable_rate(
+int32_t eb_av1_get_switchable_rate(
     ModeDecisionCandidateBuffer *candidate_buffer_ptr,
     const Av1Common *const cm,
     ModeDecisionContext *md_context_ptr//,
@@ -2403,7 +2582,7 @@ int32_t av1_get_switchable_rate(
         for (dir = 0; dir < 2; ++dir) {
             MvReferenceFrame rf[2];
             av1_set_ref_frame(rf, candidate_buffer_ptr->candidate_ptr->ref_frame_type);
-            const int32_t ctx = av1_get_pred_context_switchable_interp(
+            const int32_t ctx = eb_av1_get_pred_context_switchable_interp(
                 md_context_ptr->ref_frame_type_neighbor_array,
                 rf[0],
                 rf[1],
@@ -2525,7 +2704,7 @@ static void model_rd_norm(int32_t xsq_q10, int32_t *r_q10, int32_t *d_q10) {
     *d_q10 = (dist_tab_q10[xq] * b_q10 + dist_tab_q10[xq + 1] * a_q10) >> 10;
 }
 
-void av1_model_rd_from_var_lapndz(int64_t var, uint32_t n_log2,
+void eb_av1_model_rd_from_var_lapndz(int64_t var, uint32_t n_log2,
     uint32_t qstep, int32_t *rate,
     int64_t *dist) {
     // This function models the rate and distortion for a Laplacian
@@ -2578,7 +2757,7 @@ void av1_model_rd_from_var_lapndz(int64_t var, uint32_t n_log2,
         *dist = (uint64_t)(square_error * quantizer) >> 8;
     }
     else {
-        av1_model_rd_from_var_lapndz((uint64_t)sse, num_pels_log2_lookup[bsize],
+        eb_av1_model_rd_from_var_lapndz((uint64_t)sse, num_pels_log2_lookup[bsize],
             quantizer >> dequant_shift, (int32_t*)rate,
             (int64_t*)dist);
     }
@@ -2649,7 +2828,8 @@ extern /*static*/ void model_rd_for_sb(
 
         total_sse += sse;
 
-        int32_t current_q_index = MAX(0, MIN(QINDEX_RANGE - 1, picture_control_set_ptr->parent_pcs_ptr->base_qindex));
+        int32_t current_q_index = picture_control_set_ptr->
+            parent_pcs_ptr->frm_hdr.quantization_params.base_q_idx;
         Dequants *const dequants = &picture_control_set_ptr->parent_pcs_ptr->deq;
 
         int16_t quantizer = dequants->y_dequant_Q3[current_q_index][1];
@@ -2761,7 +2941,7 @@ static const int32_t filter_sets[DUAL_FILTER_SET_SIZE][2] = {
     /*mbmi*/candidate_buffer_ptr->candidate_ptr->interp_filters =//EIGHTTAP_REGULAR ;
         av1_broadcast_interp_filter(av1_unswitchable_filter(assign_filter));
 
-    *switchable_rate = av1_get_switchable_rate(
+    *switchable_rate = eb_av1_get_switchable_rate(
         candidate_buffer_ptr,
         cm,
         md_context_ptr//,
@@ -2828,7 +3008,7 @@ static const int32_t filter_sets[DUAL_FILTER_SET_SIZE][2] = {
                     /*mbmi*/candidate_buffer_ptr->candidate_ptr->interp_filters = (InterpFilter)
                         av1_make_interp_filters((InterpFilter)filter_sets[i][0], (InterpFilter)filter_sets[i][1]);
 
-                    tmp_rs = av1_get_switchable_rate(
+                    tmp_rs = eb_av1_get_switchable_rate(
                         candidate_buffer_ptr,
                         cm,
                         md_context_ptr//,
@@ -2901,7 +3081,7 @@ static const int32_t filter_sets[DUAL_FILTER_SET_SIZE][2] = {
                     /*mbmi*/candidate_buffer_ptr->candidate_ptr->interp_filters =
                         av1_make_interp_filters((InterpFilter)filter_sets[i][0], (InterpFilter)filter_sets[i][1]);
 
-                    tmp_rs = av1_get_switchable_rate(
+                    tmp_rs = eb_av1_get_switchable_rate(
                         candidate_buffer_ptr,
                         cm,
                         md_context_ptr//,
@@ -2976,7 +3156,7 @@ static const int32_t filter_sets[DUAL_FILTER_SET_SIZE][2] = {
 
                     /*mbmi*/candidate_buffer_ptr->candidate_ptr->interp_filters = av1_make_interp_filters((InterpFilter)filter_sets[i][0], (InterpFilter)filter_sets[i][1]);
 
-                    tmp_rs = av1_get_switchable_rate(
+                    tmp_rs = eb_av1_get_switchable_rate(
                         candidate_buffer_ptr,
                         cm,
                         md_context_ptr//,
@@ -3132,7 +3312,7 @@ EbErrorType inter_pu_prediction_av1(
     else
         ref_pic_list1 = (EbPictureBufferDesc*)EB_NULL;
 
-    if (picture_control_set_ptr->parent_pcs_ptr->allow_warped_motion
+    if (picture_control_set_ptr->parent_pcs_ptr->frm_hdr.allow_warped_motion
         && candidate_ptr->motion_mode != WARPED_CAUSAL)
             wm_count_samples(
                 md_context_ptr->cu_ptr,

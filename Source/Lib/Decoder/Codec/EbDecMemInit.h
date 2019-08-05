@@ -73,9 +73,13 @@ extern uint32_t                         svt_dec_lib_malloc_count;
         svt_dec_lib_malloc_count++; \
     }
 
+EbErrorType dec_eb_recon_picture_buffer_desc_ctor(
+    EbPtr  *object_dbl_ptr,
+    EbPtr   object_init_data_ptr);
+
 EbErrorType dec_mem_init(EbDecHandle  *dec_handle_ptr);
 
 #ifdef __cplusplus
-    }
+}
 #endif
 #endif // EbDecMemInit_h

@@ -8,6 +8,14 @@
  * Media Patent License 1.0 was not distributed with this source code in the
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
+// workaround to eliminate the compiling warning on linux
+// The macro will conflict with definition in gtest.h
+#ifdef __USE_GNU
+#undef __USE_GNU  // defined in EbThreads.h
+#endif
+#ifdef _GNU_SOURCE
+#undef _GNU_SOURCE  // defined in EbThreads.h
+#endif
 #include "EbDefinitions.h"
 #include "EbUnitTestUtility.h"
 #include "EbWarpedMotion.h"
@@ -304,7 +312,7 @@ void AV1WarpFilterTest::RunCheckOutput(warp_affine_func test_impl) {
                                 conv_params.bck_offset =
                                     quant_dist_lookup_table[ii][jj][1];
                             }
-                            av1_warp_affine_c(mat,
+                            eb_av1_warp_affine_c(mat,
                                               input,
                                               w,
                                               h,
@@ -601,7 +609,7 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
                                     quant_dist_lookup_table[ii][jj][1];
                             }
 
-                            av1_highbd_warp_affine_c(mat,
+                            eb_av1_highbd_warp_affine_c(mat,
                                                      input,
                                                      w,
                                                      h,
