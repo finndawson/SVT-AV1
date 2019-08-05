@@ -38,24 +38,26 @@
 #define SAMPLE_THRESHOLD_PRECENT_BORDER_LINE      15
 #define SAMPLE_THRESHOLD_PRECENT_TWO_BORDER_LINES 10
 
+static void picture_analysis_context_dctor(EbPtr p)
+{
+    PictureAnalysisContext *obj = (PictureAnalysisContext*)p;
+    EB_DELETE(obj->noise_picture_ptr);
+    EB_DELETE(obj->denoised_picture_ptr);
+}
 /************************************************
 * Picture Analysis Context Constructor
 ************************************************/
 EbErrorType picture_analysis_context_ctor(
+    PictureAnalysisContext *context_ptr,
     EbPictureBufferDescInitData * input_picture_buffer_desc_init_data,
     EbBool                         denoise_flag,
-    PictureAnalysisContext **context_dbl_ptr,
     EbFifo *resource_coordination_results_input_fifo_ptr,
     EbFifo *picture_analysis_results_output_fifo_ptr)
 {
-    PictureAnalysisContext *context_ptr;
-    EB_MALLOC(PictureAnalysisContext*, context_ptr, sizeof(PictureAnalysisContext), EB_N_PTR);
-    *context_dbl_ptr = context_ptr;
-
     context_ptr->resource_coordination_results_input_fifo_ptr = resource_coordination_results_input_fifo_ptr;
     context_ptr->picture_analysis_results_output_fifo_ptr = picture_analysis_results_output_fifo_ptr;
 
-    EbErrorType return_error = EB_ErrorNone;
+    context_ptr->dctor = picture_analysis_context_dctor;
 
     if (denoise_flag == EB_TRUE) {
         //denoised
@@ -65,12 +67,11 @@ EbErrorType picture_analysis_context_ctor(
             input_picture_buffer_desc_init_data->buffer_enable_mask = PICTURE_BUFFER_DESC_Y_FLAG;
         } else
             input_picture_buffer_desc_init_data->buffer_enable_mask = PICTURE_BUFFER_DESC_Y_FLAG | PICTURE_BUFFER_DESC_Cb_FLAG;
-        return_error = eb_picture_buffer_desc_ctor(
-            (EbPtr*)&(context_ptr->denoised_picture_ptr),
+        EB_NEW(
+            context_ptr->denoised_picture_ptr,
+            eb_picture_buffer_desc_ctor,
             (EbPtr)input_picture_buffer_desc_init_data);
 
-        if (return_error == EB_ErrorInsufficientResources)
-            return EB_ErrorInsufficientResources;
         if (input_picture_buffer_desc_init_data->color_format != EB_YUV444) {
             context_ptr->denoised_picture_ptr->buffer_cb = context_ptr->denoised_picture_ptr->buffer_y;
             context_ptr->denoised_picture_ptr->buffer_cr = context_ptr->denoised_picture_ptr->buffer_y + context_ptr->denoised_picture_ptr->chroma_size;
@@ -80,12 +81,10 @@ EbErrorType picture_analysis_context_ctor(
         input_picture_buffer_desc_init_data->max_height = BLOCK_SIZE_64;
         input_picture_buffer_desc_init_data->buffer_enable_mask = PICTURE_BUFFER_DESC_Y_FLAG;
 
-        return_error = eb_picture_buffer_desc_ctor(
-            (EbPtr*)&(context_ptr->noise_picture_ptr),
+        EB_NEW(
+            context_ptr->noise_picture_ptr,
+            eb_picture_buffer_desc_ctor,
             (EbPtr)input_picture_buffer_desc_init_data);
-
-        if (return_error == EB_ErrorInsufficientResources)
-            return EB_ErrorInsufficientResources;
     }
     return EB_ErrorNone;
 }
@@ -3289,8 +3288,8 @@ static int32_t apply_denoise_2d(SequenceControlSet        *scs_ptr,
     PictureParentControlSet   *pcs_ptr,
     EbPictureBufferDesc *inputPicturePointer,
     EbAsm asm_type) {
-    if (aom_denoise_and_model_run(pcs_ptr->denoise_and_model, inputPicturePointer,
-        &pcs_ptr->film_grain_params,
+    if (eb_aom_denoise_and_model_run(pcs_ptr->denoise_and_model, inputPicturePointer,
+        &pcs_ptr->frm_hdr.film_grain_params,
         scs_ptr->static_config.encoder_bit_depth > EB_8BIT, asm_type)) {
     }
     return 0;
@@ -3303,15 +3302,17 @@ EbErrorType denoise_estimate_film_grain(
 {
     EbErrorType return_error = EB_ErrorNone;
 
+    FrameHeader *frm_hdr = &picture_control_set_ptr->frm_hdr;
+
     EbPictureBufferDesc    *input_picture_ptr = picture_control_set_ptr->enhanced_picture_ptr;
-    picture_control_set_ptr->film_grain_params.apply_grain = 0;
+    frm_hdr->film_grain_params.apply_grain = 0;
 
     if (sequence_control_set_ptr->film_grain_denoise_strength) {
         if (apply_denoise_2d(sequence_control_set_ptr, picture_control_set_ptr, input_picture_ptr, asm_type) < 0)
             return 1;
     }
 
-    sequence_control_set_ptr->seq_header.film_grain_params_present |= picture_control_set_ptr->film_grain_params.apply_grain;
+    sequence_control_set_ptr->seq_header.film_grain_params_present |= frm_hdr->film_grain_params.apply_grain;
 
     return return_error;  //todo: add proper error handling
 }
@@ -4638,7 +4639,7 @@ void DownsampleDecimationInputPicture(
         sixteenth_decimated_picture_ptr->origin_y);
 
 }
-int av1_count_colors(const uint8_t *src, int stride, int rows, int cols,
+int eb_av1_count_colors(const uint8_t *src, int stride, int rows, int cols,
     int *val_count) {
     const int max_pix_val = 1 << 8;
     memset(val_count, 0, max_pix_val * sizeof(val_count[0]));
@@ -4660,7 +4661,7 @@ extern aom_variance_fn_ptr_t mefn_ptr[BlockSizeS_ALL];
 //  purposes of activity masking.
 // Eventually this should be replaced by custom no-reference routines,
 //  which will be faster.
-const uint8_t AV1_VAR_OFFS[MAX_SB_SIZE] = {
+const uint8_t eb_AV1_VAR_OFFS[MAX_SB_SIZE] = {
   128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
   128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
   128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
@@ -4672,13 +4673,13 @@ const uint8_t AV1_VAR_OFFS[MAX_SB_SIZE] = {
   128, 128, 128, 128, 128, 128, 128, 128
 };
 
-unsigned int av1_get_sby_perpixel_variance(const aom_variance_fn_ptr_t *fn_ptr, //const AV1_COMP *cpi,
+unsigned int eb_av1_get_sby_perpixel_variance(const aom_variance_fn_ptr_t *fn_ptr, //const AV1_COMP *cpi,
                                            const uint8_t *src,int stride,//const struct buf_2d *ref,
                                            BlockSize bs) {
   unsigned int sse;
   const unsigned int var =
-      //cpi->fn_ptr[bs].vf(ref->buf, ref->stride, AV1_VAR_OFFS, 0, &sse);
-     fn_ptr->vf(src,  stride, AV1_VAR_OFFS, 0, &sse);
+      //cpi->fn_ptr[bs].vf(ref->buf, ref->stride, eb_AV1_VAR_OFFS, 0, &sse);
+     fn_ptr->vf(src,  stride, eb_AV1_VAR_OFFS, 0, &sse);
   return ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[bs]);
 }
 
@@ -4709,7 +4710,7 @@ static void is_screen_content(
             const int n_colors =
                 use_hbd ? 0 /*av1_count_colors_highbd(src + r * stride + c, stride, blk_w,
                     blk_h, bd, count_buf)*/
-                : av1_count_colors(src + r * stride + c, stride, blk_w, blk_h,
+                : eb_av1_count_colors(src + r * stride + c, stride, blk_w, blk_h,
                     count_buf);
             if (n_colors > 1 && n_colors <= color_thresh) {
                 ++counts_1;
@@ -4718,7 +4719,7 @@ static void is_screen_content(
                 //buf.buf = (uint8_t *)src;
                 const aom_variance_fn_ptr_t *fn_ptr = &mefn_ptr[BLOCK_16X16];
 
-                const unsigned int var = av1_get_sby_perpixel_variance(fn_ptr, src + r * stride + c,stride, BLOCK_16X16);
+                const unsigned int var = eb_av1_get_sby_perpixel_variance(fn_ptr, src + r * stride + c,stride, BLOCK_16X16);
                                /* use_hbd
                 ? av1_high_get_sby_perpixel_variance(cpi, &buf, BLOCK_16X16, bd)
                 : */

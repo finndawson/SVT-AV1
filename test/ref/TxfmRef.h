@@ -48,14 +48,13 @@
 #include "util.h"
 
 /* Defined in EbTransforms.c */
-extern "C" int32_t get_rect_tx_log_ratio(int32_t col, int32_t row);
 namespace svt_av1_test_reference {
 // forward transform 1d reference
 using Txfm1dFuncRef = void (*)(const double *in, double *out, int size);
 
 void reference_dct_1d(const double *in, double *out, int size);
 
-// TODO(any): Copied from the old 'fadst4' (same as the new 'av1_fadst4_new'
+// TODO(any): Copied from the old 'fadst4' (same as the new 'eb_av1_fadst4_new'
 // function). Should be replaced by a proper reference function that takes
 // 'double' input & output.
 void fadst4_ref(const TranLow *input, TranLow *output);

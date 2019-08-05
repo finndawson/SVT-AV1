@@ -23,13 +23,19 @@
 
 #include "EbDeblockingFilter.h"
 
-void av1_loop_restoration_save_boundary_lines(const Yv12BufferConfig *frame, Av1Common *cm, int32_t after_cdef);
+void eb_av1_loop_restoration_save_boundary_lines(const Yv12BufferConfig *frame, Av1Common *cm, int32_t after_cdef);
 
+static void dlf_context_dctor(EbPtr p)
+{
+    DlfContext *obj = (DlfContext*)p;
+    EB_DELETE(obj->temp_lf_recon_picture_ptr);
+    EB_DELETE(obj->temp_lf_recon_picture16bit_ptr);
+}
 /******************************************************
  * Dlf Context Constructor
  ******************************************************/
 EbErrorType dlf_context_ctor(
-    DlfContext **context_dbl_ptr,
+    DlfContext            *context_ptr,
     EbFifo                *dlf_input_fifo_ptr,
     EbFifo                *dlf_output_fifo_ptr ,
     EbBool                  is16bit,
@@ -39,9 +45,7 @@ EbErrorType dlf_context_ctor(
    )
 {
     EbErrorType return_error = EB_ErrorNone;
-    DlfContext *context_ptr;
-    EB_MALLOC(DlfContext*, context_ptr, sizeof(DlfContext), EB_N_PTR);
-    *context_dbl_ptr = context_ptr;
+    context_ptr->dctor = dlf_context_dctor;
 
     // Input/Output System Resource Manager FIFOs
     context_ptr->dlf_input_fifo_ptr = dlf_input_fifo_ptr;
@@ -64,14 +68,16 @@ EbErrorType dlf_context_ctor(
 
     if (is16bit) {
         temp_lf_recon_desc_init_data.bit_depth = EB_16BIT;
-        return_error = eb_recon_picture_buffer_desc_ctor(
-            (EbPtr*)&(context_ptr->temp_lf_recon_picture16bit_ptr),
+        EB_NEW(
+            context_ptr->temp_lf_recon_picture16bit_ptr,
+            eb_recon_picture_buffer_desc_ctor,
             (EbPtr)&temp_lf_recon_desc_init_data);
     }
     else {
         temp_lf_recon_desc_init_data.bit_depth = EB_8BIT;
-        return_error = eb_recon_picture_buffer_desc_ctor(
-            (EbPtr*)&(context_ptr->temp_lf_recon_picture_ptr),
+        EB_NEW(
+            context_ptr->temp_lf_recon_picture_ptr,
+            eb_recon_picture_buffer_desc_ctor,
             (EbPtr)&temp_lf_recon_desc_init_data);
     }
 
@@ -122,17 +128,17 @@ void* dlf_kernel(void *input_ptr)
             else  // non ref pictures
                 recon_buffer = is16bit ? picture_control_set_ptr->recon_picture16bit_ptr : picture_control_set_ptr->recon_picture_ptr;
 
-            av1_loop_filter_init(picture_control_set_ptr);
+            eb_av1_loop_filter_init(picture_control_set_ptr);
 
             if (picture_control_set_ptr->parent_pcs_ptr->loop_filter_mode == 2) {
-                av1_pick_filter_level(
+                eb_av1_pick_filter_level(
                     context_ptr,
                     (EbPictureBufferDesc*)picture_control_set_ptr->parent_pcs_ptr->enhanced_picture_ptr,
                     picture_control_set_ptr,
                     LPF_PICK_FROM_Q);
             }
 
-            av1_pick_filter_level(
+            eb_av1_pick_filter_level(
                 context_ptr,
                 (EbPictureBufferDesc*)picture_control_set_ptr->parent_pcs_ptr->enhanced_picture_ptr,
                 picture_control_set_ptr,
@@ -145,7 +151,7 @@ void* dlf_kernel(void *input_ptr)
             picture_control_set_ptr->parent_pcs_ptr->lf.filter_level_u = 0;
             picture_control_set_ptr->parent_pcs_ptr->lf.filter_level_v = 0;
 #endif
-                av1_loop_filter_frame(
+                eb_av1_loop_filter_frame(
                     recon_buffer,
                     picture_control_set_ptr,
                     0,
@@ -174,7 +180,7 @@ void* dlf_kernel(void *input_ptr)
                 cm->frame_to_show);
 
             if (sequence_control_set_ptr->seq_header.enable_restoration)
-                av1_loop_restoration_save_boundary_lines(cm->frame_to_show, cm, 0);
+                eb_av1_loop_restoration_save_boundary_lines(cm->frame_to_show, cm, 0);
             if (sequence_control_set_ptr->seq_header.enable_cdef && picture_control_set_ptr->parent_pcs_ptr->cdef_filter_mode)
             {
                 if (is16bit)
