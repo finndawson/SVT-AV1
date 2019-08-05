@@ -87,37 +87,37 @@ static INLINE uint32_t compute128x_m_sad_avx512_intrin(
     return sad_final_avx512(zmm);
 }
 
-uint32_t aom_sad64x16_avx512(const uint8_t *src_ptr, int src_stride,
+uint32_t eb_aom_sad64x16_avx512(const uint8_t *src_ptr, int src_stride,
     const uint8_t *ref_ptr, int ref_stride) {
     return compute64x_m_sad_avx512_intrin(src_ptr, src_stride, ref_ptr,
         ref_stride, 16);
 }
 
-uint32_t aom_sad64x32_avx512(const uint8_t *src_ptr, int src_stride,
+uint32_t eb_aom_sad64x32_avx512(const uint8_t *src_ptr, int src_stride,
     const uint8_t *ref_ptr, int ref_stride) {
     return compute64x_m_sad_avx512_intrin(src_ptr, src_stride, ref_ptr,
         ref_stride, 32);
 }
 
-uint32_t aom_sad64x64_avx512(const uint8_t *src_ptr, int src_stride,
+uint32_t eb_aom_sad64x64_avx512(const uint8_t *src_ptr, int src_stride,
     const uint8_t *ref_ptr, int ref_stride) {
     return compute64x_m_sad_avx512_intrin(src_ptr, src_stride, ref_ptr,
         ref_stride, 64);
 }
 
-uint32_t aom_sad64x128_avx512(const uint8_t *src_ptr, int src_stride,
+uint32_t eb_aom_sad64x128_avx512(const uint8_t *src_ptr, int src_stride,
     const uint8_t *ref_ptr, int ref_stride) {
     return compute64x_m_sad_avx512_intrin(src_ptr, src_stride, ref_ptr,
         ref_stride, 128);
 }
 
-uint32_t aom_sad128x64_avx512(const uint8_t *src_ptr, int src_stride,
+uint32_t eb_aom_sad128x64_avx512(const uint8_t *src_ptr, int src_stride,
     const uint8_t *ref_ptr, int ref_stride) {
     return compute128x_m_sad_avx512_intrin(src_ptr, src_stride, ref_ptr,
         ref_stride, 64);
 }
 
-uint32_t aom_sad128x128_avx512(const uint8_t *src_ptr, int src_stride,
+uint32_t eb_aom_sad128x128_avx512(const uint8_t *src_ptr, int src_stride,
     const uint8_t *ref_ptr, int ref_stride) {
     return compute128x_m_sad_avx512_intrin(src_ptr, src_stride, ref_ptr,
         ref_stride, 128);
@@ -193,25 +193,25 @@ static AOM_FORCE_INLINE void compute64x_m_4d_sad_avx512_intrin(
     _mm_storeu_si128((__m128i *)sad_array, sum);
 }
 
-void aom_sad64x16x4d_avx512(const uint8_t *src, int src_stride,
+void eb_aom_sad64x16x4d_avx512(const uint8_t *src, int src_stride,
     const uint8_t *const ref_array[4], int ref_stride,
     uint32_t sad_array[4]) {
     compute64x_m_4d_sad_avx512_intrin(src, src_stride, ref_array, ref_stride, sad_array, 16);
 }
 
-void aom_sad64x32x4d_avx512(const uint8_t *src, int src_stride,
+void eb_aom_sad64x32x4d_avx512(const uint8_t *src, int src_stride,
     const uint8_t *const ref_array[4], int ref_stride,
     uint32_t sad_array[4]) {
     compute64x_m_4d_sad_avx512_intrin(src, src_stride, ref_array, ref_stride, sad_array, 32);
 }
 
-void aom_sad64x64x4d_avx512(const uint8_t *src, int src_stride,
+void eb_aom_sad64x64x4d_avx512(const uint8_t *src, int src_stride,
     const uint8_t *const ref_array[4], int ref_stride,
     uint32_t sad_array[4]) {
     compute64x_m_4d_sad_avx512_intrin(src, src_stride, ref_array, ref_stride, sad_array, 64);
 }
 
-void aom_sad64x128x4d_avx512(const uint8_t *src, int src_stride,
+void eb_aom_sad64x128x4d_avx512(const uint8_t *src, int src_stride,
     const uint8_t *const ref_array[4], int ref_stride,
     uint32_t sad_array[4]) {
     compute64x_m_4d_sad_avx512_intrin(src, src_stride, ref_array, ref_stride, sad_array, 128);
@@ -246,13 +246,13 @@ static INLINE void compute128x_m_4d_sad_avx512_intrin(const uint8_t *src,
     _mm_storeu_si128((__m128i *)sad_array, sum);
 }
 
-void aom_sad128x64x4d_avx512(const uint8_t *src, int src_stride,
+void eb_aom_sad128x64x4d_avx512(const uint8_t *src, int src_stride,
     const uint8_t *const ref_array[4], int ref_stride,
     uint32_t sad_array[4]) {
     compute128x_m_4d_sad_avx512_intrin(src, src_stride, ref_array, ref_stride, sad_array, 64);
 }
 
-void aom_sad128x128x4d_avx512(const uint8_t *src, int src_stride,
+void eb_aom_sad128x128x4d_avx512(const uint8_t *src, int src_stride,
     const uint8_t *const ref_array[4], int ref_stride,
     uint32_t sad_array[4]) {
     compute128x_m_4d_sad_avx512_intrin(src, src_stride, ref_array, ref_stride, sad_array, 128);
