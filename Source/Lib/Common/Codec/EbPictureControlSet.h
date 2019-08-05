@@ -14290,6 +14290,7 @@ extern "C" {
         uint8_t                               altref_strength;
         int32_t                               pic_decision_reorder_queue_idx;
         struct PictureParentControlSet       *temp_filt_pcs_list[ALTREF_MAX_NFRAMES];
+        EbByte                               save_enhanced_picture_ptr[3];
         EbHandle temp_filt_done_semaphore;
         EbHandle temp_filt_mutex;
         EbHandle debug_mutex;
@@ -14301,6 +14302,7 @@ extern "C" {
         uint8_t                               tf_segments_column_count;
         uint8_t                               tf_segments_row_count;
         uint8_t                               altref_nframes;
+        EbBool                                temporal_filtering_on;
 #if QPS_TUNING
         uint64_t                              filtered_sse; // the normalized SSE between filtered and original alt_ref with 8 bit precision.
                                                             // I Slice has the value of the next ALT_REF picture
