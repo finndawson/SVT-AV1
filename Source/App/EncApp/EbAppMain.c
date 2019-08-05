@@ -248,22 +248,25 @@ int32_t main(int32_t argc, char* argv[])
                                     // Interlaced Video
                                     if (configs[instanceCount]->interlaced_video || configs[instanceCount]->separate_fields)
                                         fprintf(configs[instanceCount]->stat_file, "Total Fields\tAverage QP  \tY-PSNR   \tU-PSNR   \tV-PSNR   \tBitrate\n");
-                                    else
-
-                                        fprintf(configs[instanceCount]->stat_file, "Total Frames\tAverage QP  \tY-PSNR   \tU-PSNR   \tV-PSNR   \tBitrate\n");
-                                    fprintf(configs[instanceCount]->stat_file, "%10ld  \t   %2.2f    \t%3.2f dB\t%3.2f dB\t%3.2f dB\t%.2f kbps\n",
+                                    else {
+                                        fprintf(configs[instanceCount]->stat_file, "\n\t\t\t\t\t\t\tAverage PSNR (using per-frame PSNR)\t\t|\tOverall PSNR (using per-frame MSE)\n");
+                                        fprintf(configs[instanceCount]->stat_file, "Total Frames\tAverage QP  \tY-PSNR   \tU-PSNR   \tV-PSNR\t\t| \tY-PSNR   \tU-PSNR   \tV-PSNR   \t|\tBitrate\n");
+                                    }
+                                    fprintf(configs[instanceCount]->stat_file, "%10ld  \t   %2.2f    \t%3.2f dB\t%3.2f dB\t%3.2f dB  \t|\t%3.2f dB\t%3.2f dB\t%3.2f dB \t|\t%.2f kbps\n",
                                          (long int)frame_count,
-                                         (float)(configs[instanceCount]->performance_context.sum_qp        / frame_count),
+                                         (float)configs[instanceCount]->performance_context.sum_qp        / frame_count,
+                                         (float)configs[instanceCount]->performance_context.sum_luma_psnr / frame_count,
+                                         (float)configs[instanceCount]->performance_context.sum_cb_psnr   / frame_count,
+                                         (float)configs[instanceCount]->performance_context.sum_cr_psnr   / frame_count,
                                          (float)(get_psnr((configs[instanceCount]->performance_context.sum_luma_sse  / frame_count) , max_luma_sse)),
-                                         (float)(get_psnr((configs[instanceCount]->performance_context.sum_cr_sse    / frame_count) , max_chroma_sse)),
                                          (float)(get_psnr((configs[instanceCount]->performance_context.sum_cb_sse    / frame_count) , max_chroma_sse)),
+                                         (float)(get_psnr((configs[instanceCount]->performance_context.sum_cr_sse    / frame_count) , max_chroma_sse)),
                                         ((double)(configs[instanceCount]->performance_context.byte_count << 3) * frame_rate / (configs[instanceCount]->frames_encoded * 1000)));
                                 }
                             }
 
                             printf("\nSUMMARY --------------------------------- Channel %u  --------------------------------\n", instanceCount + 1);
                             {
-                                // Interlaced Video
                                 if (configs[instanceCount]->interlaced_video || configs[instanceCount]->separate_fields)
                                     printf("Total Fields\t\tFrame Rate\t\tByte Count\t\tBitrate\n");
                                 else
@@ -276,13 +279,16 @@ int32_t main(int32_t argc, char* argv[])
                             }
 
                             if (configs[instanceCount]->stat_report) {
-                                // Interlaced Video
-                                printf("\nAverage QP\t\tY-PSNR\t\t\tU-PSNR\t\t\tV-PSNR\t\n");
-                                printf("%11.2f\t\t%4.2f dB\t\t%8.2fdB\t\t%5.2fdB\n",
+                                printf("\n\t\t\t\tAverage PSNR (using per-frame PSNR)\t\t\t|\t\tOverall PSNR (using per-frame MSE)\n");
+                                printf("Average QP\t\tY-PSNR\t\t\tU-PSNR\t\t\tV-PSNR\t\t|\tY-PSNR\t\t\tU-PSNR\t\t\tV-PSNR\t\n");
+                                printf("%11.2f\t\t%4.2f dB\t\t%4.2f dB\t\t%4.2f dB\t|\t%4.2f dB\t\t%4.2f dB\t\t%4.2f dB\n",
                                     (float)configs[instanceCount]->performance_context.sum_qp / frame_count,
+                                    (float)configs[instanceCount]->performance_context.sum_luma_psnr / frame_count,
+                                    (float)configs[instanceCount]->performance_context.sum_cb_psnr / frame_count,
+                                    (float)configs[instanceCount]->performance_context.sum_cr_psnr / frame_count,
                                     (float)(get_psnr((configs[instanceCount]->performance_context.sum_luma_sse / frame_count), max_luma_sse)),
-                                    (float)(get_psnr((configs[instanceCount]->performance_context.sum_cr_sse / frame_count), max_chroma_sse)),
-                                    (float)(get_psnr((configs[instanceCount]->performance_context.sum_cb_sse / frame_count), max_chroma_sse)));
+                                    (float)(get_psnr((configs[instanceCount]->performance_context.sum_cb_sse / frame_count), max_chroma_sse)),
+                                    (float)(get_psnr((configs[instanceCount]->performance_context.sum_cr_sse / frame_count), max_chroma_sse)));
                             }
 
                             fflush(stdout);

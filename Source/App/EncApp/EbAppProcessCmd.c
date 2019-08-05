@@ -1155,12 +1155,15 @@ void process_output_statistics_buffer(
 
     // Write statistic Data to file
     if (config->stat_file)
-        fprintf(config->stat_file, "Picture Number: %4d\t QP: %4d [Y: %.2f dB, U: %.2f dB, V: %.2f dB]\t %6d bits\n",
+        fprintf(config->stat_file, "Picture Number: %4d\t QP: %4d  [ PSNR-Y: %.2f dB,\tPSNR-U: %.2f dB,\tPSNR-V: %.2f dB,\tMSE-Y: %.2f,\tMSE-U: %.2f,\tMSE-V: %.2f ]\t %6d bits\n",
         (int)picture_number,
         (int)picture_qp,
         luma_psnr,
-        cr_psnr,
         cb_psnr,
+        cr_psnr,
+        (double)luma_sse/(config->source_width * config->source_height),
+        (double)cb_sse/(config->source_width / 2 * config->source_height / 2),
+        (double)cr_sse/(config->source_width / 2 * config->source_height / 2),
         (int)picture_stream_size);
 
     return;
