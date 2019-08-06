@@ -13644,6 +13644,16 @@ extern "C" {
 #if PREDICT_NSQ_SHAPE
         uint8_t           open_loop_ranking;
         uint8_t           early_split_flag;
+#if COMBINE_MDC_NSQ_TABLE
+        uint8_t           ol_best_nsq_shape1;
+        uint8_t           ol_best_nsq_shape2;
+        uint8_t           ol_best_nsq_shape3;
+        uint8_t           ol_best_nsq_shape4;
+        uint8_t           ol_best_nsq_shape5;
+        uint8_t           ol_best_nsq_shape6;
+        uint8_t           ol_best_nsq_shape7;
+        uint8_t           ol_best_nsq_shape8;
+#endif
 #endif
     } EbMdcLeafData;
 

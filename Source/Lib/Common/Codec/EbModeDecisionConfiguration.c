@@ -1096,7 +1096,7 @@ EB_EXTERN EbErrorType nsq_prediction_shape(
         }
 #if ADD_MDC_INTRA
             // Check best Intra OIS Candidate
-        if(context_ptr->blk_geom->sq_size > 4 && context_ptr->blk_geom->shape == PART_N){
+        if (context_ptr->blk_geom->sq_size > 4 && context_ptr->blk_geom->sq_size < 128 && context_ptr->blk_geom->shape == PART_N) {
             context_ptr->mdc_cu_ptr->is_inter_ctx = 0;
             context_ptr->mdc_cu_ptr->skip_flag_context = 0;
             context_ptr->mdc_cu_ptr->inter_mode_ctx[context_ptr->mdc_candidate_ptr->ref_frame_type] = 0;
@@ -1106,8 +1106,9 @@ EB_EXTERN EbErrorType nsq_prediction_shape(
             EbBool          disable_cfl_flag = EB_TRUE;// (MAX(context_ptr->blk_geom->bheight, context_ptr->blk_geom->bwidth) > 32) ? EB_TRUE : EB_FALSE;
             OisSbResults    *ois_sb_results_ptr = picture_control_set_ptr->parent_pcs_ptr->ois_sb_results[sb_ptr->index];
             OisCandidate    *ois_blk_ptr = ois_sb_results_ptr->ois_candidate_array[ep_to_pa_block_index[context_ptr->blk_geom->blkidx_mds]];
-            uint8_t          total_intra_luma_mode = MIN(1, ois_sb_results_ptr->total_ois_intra_candidate[ep_to_pa_block_index[context_ptr->blk_geom->blkidx_mds]]);
-
+            uint8_t          total_intra_luma_mode = MIN(3, ois_sb_results_ptr->total_ois_intra_candidate[ep_to_pa_block_index[context_ptr->blk_geom->blkidx_mds]]);
+            uint64_t temp_intra_cost = MAX_CU_COST;
+            uint64_t intra_cost = MAX_CU_COST;
             for (intra_candidate_counter = 0; intra_candidate_counter < total_intra_luma_mode; ++intra_candidate_counter) {
                 intra_mode = ois_blk_ptr[can_total_cnt].intra_mode;
                 assert(intra_mode < INTRA_MODES);
@@ -1160,37 +1161,36 @@ EB_EXTERN EbErrorType nsq_prediction_shape(
                     context_ptr->mdc_candidate_ptr->motion_mode = SIMPLE_TRANSLATION;
 
                 }
-            }
-            // Fast Cost Calc
-            uint64_t intra_cost = av1_intra_fast_cost(
-                context_ptr->mdc_cu_ptr,
-                context_ptr->mdc_candidate_ptr,
-                context_ptr->qp,
+                // Fast Cost Calc
+                temp_intra_cost = av1_intra_fast_cost(
+                    context_ptr->mdc_cu_ptr,
+                    context_ptr->mdc_candidate_ptr,
+                    context_ptr->qp,
 #if MD_INJECTION
-                context_ptr->mdc_candidate_ptr->me_distortion,
+                    context_ptr->mdc_candidate_ptr->me_distortion,
 #else
-                mePuResult->distortion_direction[0].distortion,
+                    mePuResult->distortion_direction[0].distortion,
 #endif
-                (uint64_t)0,
-                context_ptr->lambda,
-                0,
-                picture_control_set_ptr,
-                context_ptr->mdc_ref_mv_stack,
-                blk_geom,
-                (sb_originy + blk_geom->origin_y) >> MI_SIZE_LOG2,
-                (sb_originx + blk_geom->origin_x) >> MI_SIZE_LOG2,
+                    (uint64_t)0,
+                    context_ptr->lambda,
+                    0,
+                    picture_control_set_ptr,
+                    context_ptr->mdc_ref_mv_stack,
+                    blk_geom,
+                    (sb_originy + blk_geom->origin_y) >> MI_SIZE_LOG2,
+                    (sb_originx + blk_geom->origin_x) >> MI_SIZE_LOG2,
 #if MRP_COST_EST
-                0,
+                    0,
 #endif
-                DC_PRED,        // Hsan: neighbor not generated @ open loop partitioning
-                DC_PRED);       // Hsan: neighbor not generated @ open loop partitioning
+                    DC_PRED,        // Hsan: neighbor not generated @ open loop partitioning
+                    DC_PRED);       // Hsan: neighbor not generated @ open loop partitioning
 
-            if (intra_cost < cu_ptr->early_cost)
-                cu_ptr->early_cost = intra_cost;
+                if (temp_intra_cost < intra_cost)
+                    intra_cost = temp_intra_cost;
+            }
+            cu_ptr->early_cost = intra_cost;
         }
 #endif
-
-
         if (blk_geom->nsi + 1 == blk_geom->totns) {
             nsq_cost[context_ptr->blk_geom->shape] = mdc_d1_non_square_block_decision(sequence_control_set_ptr, context_ptr);
         }
@@ -1199,7 +1199,6 @@ EB_EXTERN EbErrorType nsq_prediction_shape(
 
         if (d1_blocks_accumlated == leaf_data_ptr->tot_d1_blocks)
         {
-
             end_idx = cuIdx + 1;
             //Sorting
             {
@@ -1216,7 +1215,7 @@ EB_EXTERN EbErrorType nsq_prediction_shape(
             }
 
 #if DEPTH_RANKING
-            depth_cost[get_depth(context_ptr->blk_geom->sq_size)] += nsq_cost[0];
+            depth_cost[get_depth(context_ptr->blk_geom->sq_size)] += nsq_cost[nsq_shape_table[0]];
 #endif
             // Assign ranking # to each block
             for (leaf_idx = start_idx; leaf_idx < end_idx; leaf_idx++) {
@@ -1224,10 +1223,22 @@ EB_EXTERN EbErrorType nsq_prediction_shape(
                 uint32_t idx_mds = leaf_data_array[leaf_idx].mds_idx;
                const BlockGeom * bepth_blk_geom = get_blk_geom_mds(leaf_data_array[leaf_idx].mds_idx);
                current_depth_leaf_data->open_loop_ranking = find_shape_index(bepth_blk_geom->shape, nsq_shape_table);
+#if COMBINE_MDC_NSQ_TABLE
+               current_depth_leaf_data->ol_best_nsq_shape1 = nsq_shape_table[0];
+               current_depth_leaf_data->ol_best_nsq_shape2 = nsq_shape_table[1];
+               current_depth_leaf_data->ol_best_nsq_shape3 = nsq_shape_table[2];
+               current_depth_leaf_data->ol_best_nsq_shape4 = nsq_shape_table[3];
+               current_depth_leaf_data->ol_best_nsq_shape5 = nsq_shape_table[4];
+               current_depth_leaf_data->ol_best_nsq_shape6 = nsq_shape_table[5];
+               current_depth_leaf_data->ol_best_nsq_shape7 = nsq_shape_table[6];
+               current_depth_leaf_data->ol_best_nsq_shape8 = nsq_shape_table[7];
+#endif
             }
 
             //Reset nsq table
-            memset(nsq_cost, MAX_CU_COST,NUMBER_OF_SHAPES*sizeof(uint64_t));
+            //memset(nsq_cost, MAX_CU_COST,NUMBER_OF_SHAPES*sizeof(uint64_t));
+            for (int cost_idx = 0; cost_idx < NUMBER_OF_SHAPES; cost_idx++)
+                nsq_cost[cost_idx] = MAX_CU_COST;
             for (int sh = 0; sh < NUMBER_OF_SHAPES; sh++)
                 nsq_shape_table[sh] = (PART) sh;
 
