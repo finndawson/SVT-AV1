@@ -43,7 +43,7 @@ DECLARE_ALIGNED(32, static const uint8_t, filt4_global_avx2[32]) = {
   6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14
 };
 
-static INLINE __m256i convolve_lowbd(const __m256i *const s,
+static INLINE __m256i convolve_lowbd_8tap_avx2(const __m256i *const s,
     const __m256i *const coeffs) {
     const __m256i res_01 = _mm256_maddubs_epi16(s[0], coeffs[0]);
     const __m256i res_23 = _mm256_maddubs_epi16(s[1], coeffs[1]);
@@ -57,7 +57,7 @@ static INLINE __m256i convolve_lowbd(const __m256i *const s,
     return res;
 }
 
-static INLINE __m256i convolve_lowbd_x(const __m256i data,
+static INLINE __m256i convolve_lowbd_x_8tap_avx2(const __m256i data,
     const __m256i *const coeffs,
     const __m256i *const filt) {
     __m256i s[4];
@@ -67,7 +67,7 @@ static INLINE __m256i convolve_lowbd_x(const __m256i data,
     s[2] = _mm256_shuffle_epi8(data, filt[2]);
     s[3] = _mm256_shuffle_epi8(data, filt[3]);
 
-    return convolve_lowbd(s, coeffs);
+    return convolve_lowbd_8tap_avx2(s, coeffs);
 }
 
 static INLINE __m256i convolve(const __m256i *const s,
@@ -184,7 +184,7 @@ void eb_av1_wiener_convolve_add_src_avx2(const uint8_t *src, ptrdiff_t src_strid
                     (__m128i *)&src_ptr[(i * src_stride) + j + src_stride]),
                     1);
 
-            __m256i res = convolve_lowbd_x(data, coeffs_h, filt);
+            __m256i res = convolve_lowbd_x_8tap_avx2(data, coeffs_h, filt);
 
             res =
                 _mm256_sra_epi16(_mm256_add_epi16(res, round_const_h), round_shift_h);

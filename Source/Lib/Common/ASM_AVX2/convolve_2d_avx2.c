@@ -154,8 +154,8 @@
     s[3] = _mm256_unpacklo_epi16(s6, s7);                                     \
     s[7] = _mm256_unpackhi_epi16(s6, s7);                                     \
                                                                               \
-    __m256i res_a = convolve(s, coeffs_v);                                    \
-    __m256i res_b = convolve(s + 4, coeffs_v);                                \
+    __m256i res_a = convolve_8tap(s, coeffs_v);                               \
+    __m256i res_b = convolve_8tap(s + 4, coeffs_v);                           \
                                                                               \
     res_a =                                                                   \
         _mm256_sra_epi32(_mm256_add_epi32(res_a, sum_round_v), sum_shift_v);  \
@@ -230,7 +230,7 @@ void eb_av1_convolve_2d_sr_avx2(const uint8_t *src, int32_t src_stride,
     filt[0] = _mm256_load_si256((__m256i const *)filt1_global_avx2);
     filt[1] = _mm256_load_si256((__m256i const *)filt2_global_avx2);
 
-    prepare_coeffs_lowbd(filter_params_x, subpel_x_qn, coeffs_h);
+    prepare_coeffs_lowbd_8tap_avx2(filter_params_x, subpel_x_qn, coeffs_h);
     prepare_coeffs(filter_params_y, subpel_y_qn, coeffs_v);
 
     if (h_tap == 2) {

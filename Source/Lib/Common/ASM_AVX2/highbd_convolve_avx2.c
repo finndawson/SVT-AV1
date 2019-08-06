@@ -119,13 +119,13 @@ void eb_av1_highbd_convolve_y_sr_avx2(const uint16_t *src, int32_t src_stride,
                 s[3] = _mm256_unpacklo_epi16(s67, s78);
                 s[7] = _mm256_unpackhi_epi16(s67, s78);
 
-                const __m256i res_a = convolve(s, coeffs_y);
+                const __m256i res_a = convolve_8tap(s, coeffs_y);
 
                 __m256i res_a_round = _mm256_sra_epi32(
                     _mm256_add_epi32(res_a, round_const_bits), round_shift_bits);
 
                 if (w - j > 4) {
-                    const __m256i res_b = convolve(s + 4, coeffs_y);
+                    const __m256i res_b = convolve_8tap(s + 4, coeffs_y);
                     __m256i res_b_round = _mm256_sra_epi32(
                         _mm256_add_epi32(res_b, round_const_bits), round_shift_bits);
 
@@ -223,7 +223,7 @@ void eb_av1_highbd_convolve_x_sr_avx2(const uint16_t *src, int32_t src_stride,
             s[2] = _mm256_alignr_epi8(r1, r0, 8);
             s[3] = _mm256_alignr_epi8(r1, r0, 12);
 
-            __m256i res_even = convolve(s, coeffs_x);
+            __m256i res_even = convolve_8tap(s, coeffs_x);
             res_even = _mm256_sra_epi32(_mm256_add_epi32(res_even, round_const_x),
                 round_shift_x);
 
@@ -233,7 +233,7 @@ void eb_av1_highbd_convolve_x_sr_avx2(const uint16_t *src, int32_t src_stride,
             s[2] = _mm256_alignr_epi8(r1, r0, 10);
             s[3] = _mm256_alignr_epi8(r1, r0, 14);
 
-            __m256i res_odd = convolve(s, coeffs_x);
+            __m256i res_odd = convolve_8tap(s, coeffs_x);
             res_odd = _mm256_sra_epi32(_mm256_add_epi32(res_odd, round_const_x),
                 round_shift_x);
 

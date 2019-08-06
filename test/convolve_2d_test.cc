@@ -36,6 +36,7 @@
 #include "EbTime.h"
 #include "EbUtility.h"
 #include "convolve.h"
+#include "convolve_avx2.h"
 #include "convolve_2d_funcs.h"
 #if defined(_MSC_VER)
 #pragma warning(suppress : 4324)
@@ -313,8 +314,6 @@ class AV1Convolve2DTest : public ::testing::TestWithParam<Convolve2DParam> {
         const InterpFilter max_vfilter =
             has_suby ? INTERP_FILTERS_ALL : EIGHTTAP_SMOOTH;
         for (int compIdx = 0; compIdx < 2; ++compIdx) {
-            if (compIdx && block_idx > 3)
-                continue;
             for (hfilter = EIGHTTAP_REGULAR; hfilter < max_hfilter; ++hfilter) {
                 for (vfilter = EIGHTTAP_REGULAR; vfilter < max_vfilter;
                      ++vfilter) {
@@ -548,7 +547,7 @@ class AV1LbdConvolve2DTest
         uint64_t middle_time_seconds, middle_time_useconds;
         uint64_t finish_time_seconds, finish_time_useconds;
 
-        const uint64_t num_loop = 10000000 / (output_w * output_h);
+        const uint64_t num_loop = 10000000000 / (output_w * output_h);
 
         EbStartTime(&start_time_seconds, &start_time_useconds);
 
@@ -594,8 +593,12 @@ class AV1LbdConvolve2DTest
                                       finish_time_useconds,
                                       &time_o);
 
-        printf(
-            "convolve(%3dx%3d): %6.2f\n", output_w, output_h, time_c / time_o);
+        printf("convolve(%3dx%3d, tap (%d, %d)): %6.2f\n",
+               output_w,
+               output_h,
+               get_convolve_tap(filter_params_x->filter_ptr),
+               get_convolve_tap(filter_params_y->filter_ptr),
+               time_c / time_o);
     }
 };
 
