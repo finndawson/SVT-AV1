@@ -101,10 +101,10 @@ void* set_me_hme_params_oq(
     UNUSED(sequence_control_set_ptr);
     uint8_t  hmeMeLevel =  picture_control_set_ptr->enc_mode; // OMK to be revised after new presets
 #if M4_SET_ME
-     hmeMeLevel = ENC_M4;
+     hmeMeLevel = (picture_control_set_ptr->sc_content_detected) ? hmeMeLevel : ENC_M4;
 #endif
 #if M5_CAND_ME
-     hmeMeLevel = ENC_M5;
+     hmeMeLevel = (picture_control_set_ptr->sc_content_detected) ? hmeMeLevel : ENC_M5;
 #endif
     // HME/ME default settings
     me_context_ptr->number_hme_search_region_in_width = 2;
@@ -333,10 +333,10 @@ void* tf_set_me_hme_params_oq(
     UNUSED(sequence_control_set_ptr);
     uint8_t  hmeMeLevel = picture_control_set_ptr->enc_mode; // OMK to be revised after new presets
 #if M4_SET_ME
-    hmeMeLevel = ENC_M4;
+    hmeMeLevel = (picture_control_set_ptr->sc_content_detected) ? hmeMeLevel : ENC_M4;
 #endif
 #if M5_CAND_ME
-    hmeMeLevel = ENC_M5;
+    hmeMeLevel = (picture_control_set_ptr->sc_content_detected) ? hmeMeLevel : ENC_M5;
 #endif
 #if M0_SETTINGS
     hmeMeLevel = 0;
