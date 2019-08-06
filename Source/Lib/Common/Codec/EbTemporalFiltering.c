@@ -32,6 +32,7 @@
 #include "EbMcp.h"
 #include "av1me.h"
 #include "EbTemporalFiltering_sse4.h"
+#include "EbObject.h"
 
 #undef _MM_HINT_T2
 #define _MM_HINT_T2  1
@@ -1706,8 +1707,8 @@ EbErrorType save_src_pic_buffers(PictureParentControlSet *picture_control_set_pt
 
     // allocate memory for the copy of the original enhanced buffer
     for(int channel=0; channel<COLOR_CHANNELS; channel++) {
-        EB_MALLOC(EbByte, picture_control_set_ptr_central->save_enhanced_picture_ptr[channel],
-                  picture_control_set_ptr_central->enhanced_picture_ptr->luma_size * sizeof(uint8_t), EB_N_PTR);
+        EB_MALLOC(picture_control_set_ptr_central->save_enhanced_picture_ptr[channel],
+                  picture_control_set_ptr_central->enhanced_picture_ptr->luma_size * sizeof(uint8_t));
     }
 
     // copy buffers
