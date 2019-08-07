@@ -336,7 +336,7 @@ void* tf_set_me_hme_params_oq(
     hmeMeLevel = (picture_control_set_ptr->sc_content_detected) ? hmeMeLevel : ENC_M4;
 #endif
 #if M5_CAND_ME
-    hmeMeLevel = (picture_control_set_ptr->sc_content_detected) ? hmeMeLevel : ENC_M5;
+    hmeMeLevel = ENC_M5;
 #endif
 #if M0_SETTINGS
     hmeMeLevel = 0;

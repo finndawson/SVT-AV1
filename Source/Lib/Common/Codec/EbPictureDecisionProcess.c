@@ -891,7 +891,7 @@ EbErrorType signal_derivation_multi_processes_oq(
 #if M4_SET_ME
     uint8_t enc_mode = (picture_control_set_ptr->sc_content_detected) ? picture_control_set_ptr->enc_mode : ENC_M4;
 #if M5_CAND_ME
-    enc_mode = (picture_control_set_ptr->sc_content_detected) ? picture_control_set_ptr->enc_mode : ENC_M5;
+    enc_mode =  ENC_M5;
 #endif
     #if M0_HME_ME_TUNING
         picture_control_set_ptr->enable_hme_flag = enable_hme_flag[picture_control_set_ptr->sc_content_detected][sequence_control_set_ptr->input_resolution][enc_mode];
