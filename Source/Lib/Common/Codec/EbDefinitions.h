@@ -570,6 +570,7 @@ typedef enum MD_STAGE {
 #define ADD_SAD_FOR_128X128                             1
 #define ADJUST_NSQ_RANK_BASED_ON_NEIGH                  1
 #define COMBINE_MDC_NSQ_TABLE                           1
+#define NSQ_SUB_LEVEL                                   1
 #endif
 #if COMBINE_MDC_NSQ_TABLE
 #define NSQ_TAB_SIZE                                    8
@@ -1028,6 +1029,15 @@ typedef enum NsqSearchLevel
     NSQ_SEARCH_LEVEL6,
     NSQ_SEARCH_FULL
 } NsqSearchLevel;
+
+#if NSQ_SUB_LEVEL
+typedef enum NsqSearchSubLevel
+{
+    NO_SUB_LEVEL,
+    NSQ_SEARCH_SUB_LEVEL1,
+    NSQ_SEARCH_SUB_LEVEL2
+} NsqSearchSubLevel;
+#endif
 
 #define MAX_PARENT_SQ     6
 typedef enum CompoundDistWeightMode {

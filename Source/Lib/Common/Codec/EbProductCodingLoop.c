@@ -7266,6 +7266,10 @@ uint8_t shape_rank_th[NUMBER_OF_DEPTH] = {10,10,10,10,10,10}; // Range 0-10;  0:
 *   performs CL (LCU)
 *******************************************/
 EbBool allowed_ns_cu(
+#if NSQ_SUB_LEVEL
+    uint8_t                            temporal_layer,
+    uint8_t                            nsq_search_sub_level,
+#endif
     EbBool                             is_nsq_table_used,
     uint8_t                            nsq_max_shapes_md,
     ModeDecisionContext                *context_ptr,
@@ -7281,14 +7285,62 @@ EbBool allowed_ns_cu(
     }
 #endif
 #if COMBINE_MDC_NSQ_TABLE
+
     if (is_nsq_table_used) {
         if (context_ptr->blk_geom->shape != PART_N) {
             ret = 0;
-            for (int i = 0; i < nsq_max_shapes_md; i++) {
-                if (context_ptr->blk_geom->shape == context_ptr->nsq_table[i])
-                    ret = 1;
-            } 
+#if NSQ_SUB_LEVEL
+            if (nsq_search_sub_level == NSQ_SEARCH_SUB_LEVEL1) {
+                if (temporal_layer > 3) {
+                    if (context_ptr->blk_geom->bheight > 16 && context_ptr->blk_geom->bwidth > 16) {
+                        for (int i = 0; i < nsq_max_shapes_md; i++) {
+                            if (context_ptr->blk_geom->shape == context_ptr->nsq_table[i])
+                                ret = 1;
+                        }
+                    }
+                }
+                else if (temporal_layer > 0) {
+                    if (context_ptr->blk_geom->bheight > 8 && context_ptr->blk_geom->bwidth > 8) {
+                        for (int i = 0; i < nsq_max_shapes_md; i++) {
+                            if (context_ptr->blk_geom->shape == context_ptr->nsq_table[i])
+                                ret = 1;
+                        }
+                    }
+                }
+                else {
+                    for (int i = 0; i < nsq_max_shapes_md + 1; i++) {
+                        if (context_ptr->blk_geom->shape == context_ptr->nsq_table[i])
+                            ret = 1;
+                    }
+                }
+            }
+            else if (nsq_search_sub_level == NSQ_SEARCH_SUB_LEVEL2) {
+                if (temporal_layer > 3) {
+                    if (context_ptr->blk_geom->bheight > 16 && context_ptr->blk_geom->bwidth > 16) {
+                        for (int i = 0; i < nsq_max_shapes_md; i++) {
+                            if (context_ptr->blk_geom->shape == context_ptr->nsq_table[i])
+                                ret = 1;
+                        }
+                    }
+                }
+                else {
+                    for (int i = 0; i < nsq_max_shapes_md + 1; i++) {
+                        if (context_ptr->blk_geom->shape == context_ptr->nsq_table[i])
+                            ret = 1;
+                    }
+                }
+
+            }
+            else {
+#endif
+                for (int i = 0; i < nsq_max_shapes_md; i++) {
+                    if (context_ptr->blk_geom->shape == context_ptr->nsq_table[i])
+                        ret = 1;
+                }
+            }
+#if NSQ_SUB_LEVEL
         }
+#endif
     }
 #else
 #if MDC_ONLY
@@ -8677,6 +8729,10 @@ void md_encode_block(
     if (allowed_ns_cu(is_nsq_table_used, nsq_max_shapes_md, context_ptr, is_complete_sb))
 #else
     if (allowed_ns_cu(
+#if NSQ_SUB_LEVEL
+        picture_control_set_ptr->temporal_layer_index,
+        picture_control_set_ptr->parent_pcs_ptr->nsq_search_sub_level,
+#endif
         is_nsq_table_used, picture_control_set_ptr->parent_pcs_ptr->nsq_max_shapes_md, context_ptr, is_complete_sb))
 #endif
     {
