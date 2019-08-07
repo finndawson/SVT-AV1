@@ -1130,11 +1130,11 @@ EbErrorType signal_derivation_multi_processes_oq(
 #if NSQ_SUB_LEVEL
     // NSQ search sub Level                           Settings
     // Feature off                                    OFF
-    // NSQ_SEARCH_SUB_LEVEL1                          // NSQ LEVEL -1 at base 
+    // NSQ_SEARCH_SUB_LEVEL1                          // NSQ LEVEL -1 at base
                                                       // NSQ Off for 8x8 at non-base
                                                       // NSQ Off for 8x8/16x16 at non-ref
                                                       // NSQ_LEVEL, Otherwise.
-    // NSQ_SEARCH_SUB_LEVEL2                          // NSQ LEVEL at ref 
+    // NSQ_SEARCH_SUB_LEVEL2                          // NSQ LEVEL at ref
                                                       // NSQ Off for 8x8/16x16 at non-ref
       picture_control_set_ptr->nsq_search_sub_level = NO_SUB_LEVEL;
 
@@ -1281,7 +1281,7 @@ EbErrorType signal_derivation_multi_processes_oq(
 #if !M5_CAND_FILTER
     if (picture_control_set_ptr->enc_mode <= ENC_M4)
         cm->sg_filter_mode = 4;
-    else 
+    else
 #endif
     if (picture_control_set_ptr->enc_mode <= ENC_M6)
         cm->sg_filter_mode = 3;
@@ -1322,7 +1322,7 @@ EbErrorType signal_derivation_multi_processes_oq(
 #if !M5_CAND_TX
     if (picture_control_set_ptr->enc_mode <= ENC_M4)
         picture_control_set_ptr->tx_search_level = TX_SEARCH_FULL_LOOP;
-    else 
+    else
 #endif
     if (picture_control_set_ptr->enc_mode <= ENC_M7) {
         if (picture_control_set_ptr->temporal_layer_index == 0)

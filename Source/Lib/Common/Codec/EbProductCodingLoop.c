@@ -7820,7 +7820,7 @@ void  adjust_nsq_rank(
     LargestCodingUnit            *sb_ptr,
     NeighborArrayUnit            *leaf_partition_neighbor_array) {
     const uint32_t                lcuAddr = sb_ptr->index;
-    
+
     uint8_t ol_part1 = context_ptr->best_nsq_sahpe1;
     uint8_t ol_part2 = context_ptr->best_nsq_sahpe2;
     uint8_t ol_part3 = context_ptr->best_nsq_sahpe3;
@@ -7983,25 +7983,25 @@ void  adjust_nsq_rank(
             context_ptr->nsq_table[5] = neighbor_part != PART_N && neighbor_part != PART_S ? neighbor_part : me_part_0;
     }
     context_ptr->nsq_table[2] = context_ptr->nsq_table[0] != ol_part1 && context_ptr->nsq_table[1] != ol_part1  ? ol_part1
-                            : context_ptr->nsq_table[0] != ol_part2 && context_ptr->nsq_table[1] != ol_part2  ? ol_part2 
+                            : context_ptr->nsq_table[0] != ol_part2 && context_ptr->nsq_table[1] != ol_part2  ? ol_part2
                             : ol_part3 != PART_N ? ol_part3 : context_ptr->nsq_table[2];
     context_ptr->nsq_table[3] = context_ptr->nsq_table[0] != ol_part1 && context_ptr->nsq_table[1] != ol_part1 && context_ptr->nsq_table[2] != ol_part1 ? ol_part1
-                        : context_ptr->nsq_table[0] != ol_part2 && context_ptr->nsq_table[1] != ol_part2 && context_ptr->nsq_table[2] != ol_part2 ? ol_part2 
-                        : context_ptr->nsq_table[0] != ol_part3 && context_ptr->nsq_table[1] != ol_part3 && context_ptr->nsq_table[2] != ol_part3 ? ol_part3 
+                        : context_ptr->nsq_table[0] != ol_part2 && context_ptr->nsq_table[1] != ol_part2 && context_ptr->nsq_table[2] != ol_part2 ? ol_part2
+                        : context_ptr->nsq_table[0] != ol_part3 && context_ptr->nsq_table[1] != ol_part3 && context_ptr->nsq_table[2] != ol_part3 ? ol_part3
                         : ol_part4 != PART_N ? ol_part4 : context_ptr->nsq_table[3];
     context_ptr->nsq_table[4] = context_ptr->nsq_table[0] != ol_part1 && context_ptr->nsq_table[1] != ol_part1 && context_ptr->nsq_table[2] != ol_part1 && context_ptr->nsq_table[3] != ol_part1 ? ol_part1
-                        : context_ptr->nsq_table[0] != ol_part2 && context_ptr->nsq_table[1] != ol_part2 && context_ptr->nsq_table[2] != ol_part2 && context_ptr->nsq_table[3] != ol_part2 ? ol_part2 
+                        : context_ptr->nsq_table[0] != ol_part2 && context_ptr->nsq_table[1] != ol_part2 && context_ptr->nsq_table[2] != ol_part2 && context_ptr->nsq_table[3] != ol_part2 ? ol_part2
                         : context_ptr->nsq_table[0] != ol_part3 && context_ptr->nsq_table[1] != ol_part3 && context_ptr->nsq_table[2] != ol_part3 && context_ptr->nsq_table[3] != ol_part3 ? ol_part3
                         : context_ptr->nsq_table[0] != ol_part4 && context_ptr->nsq_table[1] != ol_part4 && context_ptr->nsq_table[2] != ol_part4 && context_ptr->nsq_table[3] != ol_part4 ? ol_part4
                         : ol_part5 != PART_N ? ol_part5 : context_ptr->nsq_table[4];
     context_ptr->nsq_table[5] = context_ptr->nsq_table[0] != ol_part1 && context_ptr->nsq_table[1] != ol_part1 && context_ptr->nsq_table[2] != ol_part1 && context_ptr->nsq_table[3] != ol_part1 && context_ptr->nsq_table[4] != ol_part1 ? ol_part1
-                        : context_ptr->nsq_table[0] != ol_part2 && context_ptr->nsq_table[1] != ol_part2 && context_ptr->nsq_table[2] != ol_part2 && context_ptr->nsq_table[3] != ol_part2 && context_ptr->nsq_table[4] != ol_part2 ? ol_part2 
+                        : context_ptr->nsq_table[0] != ol_part2 && context_ptr->nsq_table[1] != ol_part2 && context_ptr->nsq_table[2] != ol_part2 && context_ptr->nsq_table[3] != ol_part2 && context_ptr->nsq_table[4] != ol_part2 ? ol_part2
                         : context_ptr->nsq_table[0] != ol_part3 && context_ptr->nsq_table[1] != ol_part3 && context_ptr->nsq_table[2] != ol_part3 && context_ptr->nsq_table[3] != ol_part3 && context_ptr->nsq_table[4] != ol_part3 ? ol_part3
                         : context_ptr->nsq_table[0] != ol_part4 && context_ptr->nsq_table[1] != ol_part4 && context_ptr->nsq_table[2] != ol_part4 && context_ptr->nsq_table[3] != ol_part4 && context_ptr->nsq_table[4] != ol_part4 ? ol_part4
                         : context_ptr->nsq_table[0] != ol_part5 && context_ptr->nsq_table[1] != ol_part5 && context_ptr->nsq_table[2] != ol_part5 && context_ptr->nsq_table[3] != ol_part5 && context_ptr->nsq_table[4] != ol_part5 ? ol_part5
                         : ol_part6 != PART_N ? ol_part6 : context_ptr->nsq_table[5];
     context_ptr->nsq_table[6] = context_ptr->nsq_table[0] != ol_part1 && context_ptr->nsq_table[1] != ol_part1 && context_ptr->nsq_table[2] != ol_part1 && context_ptr->nsq_table[3] != ol_part1 && context_ptr->nsq_table[4] != ol_part1 && context_ptr->nsq_table[5] != ol_part1 ? ol_part1
-                        : context_ptr->nsq_table[0] != ol_part2 && context_ptr->nsq_table[1] != ol_part2 && context_ptr->nsq_table[2] != ol_part2 && context_ptr->nsq_table[3] != ol_part2 && context_ptr->nsq_table[4] != ol_part2 && context_ptr->nsq_table[5] != ol_part2 ? ol_part2 
+                        : context_ptr->nsq_table[0] != ol_part2 && context_ptr->nsq_table[1] != ol_part2 && context_ptr->nsq_table[2] != ol_part2 && context_ptr->nsq_table[3] != ol_part2 && context_ptr->nsq_table[4] != ol_part2 && context_ptr->nsq_table[5] != ol_part2 ? ol_part2
                         : context_ptr->nsq_table[0] != ol_part3 && context_ptr->nsq_table[1] != ol_part3 && context_ptr->nsq_table[2] != ol_part3 && context_ptr->nsq_table[3] != ol_part3 && context_ptr->nsq_table[4] != ol_part3 && context_ptr->nsq_table[5] != ol_part3 ? ol_part3
                         : context_ptr->nsq_table[0] != ol_part4 && context_ptr->nsq_table[1] != ol_part4 && context_ptr->nsq_table[2] != ol_part4 && context_ptr->nsq_table[3] != ol_part4 && context_ptr->nsq_table[4] != ol_part4 && context_ptr->nsq_table[5] != ol_part4 ? ol_part4
                         : context_ptr->nsq_table[0] != ol_part5 && context_ptr->nsq_table[1] != ol_part5 && context_ptr->nsq_table[2] != ol_part5 && context_ptr->nsq_table[3] != ol_part5 && context_ptr->nsq_table[4] != ol_part5 && context_ptr->nsq_table[5] != ol_part5 ? ol_part5
@@ -8010,12 +8010,12 @@ void  adjust_nsq_rank(
     // Replace PART_N by best MDC.
     for (uint8_t idx = 0; idx < 7; idx++) {
         if (context_ptr->nsq_table[idx] == PART_N) {
-            context_ptr->nsq_table[idx] = ol_part1 != PART_N ? ol_part1 : 
+            context_ptr->nsq_table[idx] = ol_part1 != PART_N ? ol_part1 :
                 ol_part2 != PART_N ? ol_part2 :
-                ol_part3 != PART_N ? ol_part3 : 
-                ol_part4 != PART_N ? ol_part4 : 
-                ol_part5 != PART_N ? ol_part5 : 
-                ol_part6 != PART_N ? ol_part6 : 
+                ol_part3 != PART_N ? ol_part3 :
+                ol_part4 != PART_N ? ol_part4 :
+                ol_part5 != PART_N ? ol_part5 :
+                ol_part6 != PART_N ? ol_part6 :
                 ol_part7 != PART_N ? ol_part7 : ol_part8;
             break;
         }
@@ -9798,7 +9798,7 @@ EB_EXTERN EbErrorType mode_decision_sb(
             skip_next_sq = 0;
 
 
-#if  INCOMPLETE_SB_ASSERT       
+#if  INCOMPLETE_SB_ASSERT
         if (sequence_control_set_ptr->sb_geom[lcuAddr].block_is_completely_inside[cu_ptr->mds_idx] == 0 &&
             sequence_control_set_ptr->sb_geom[lcuAddr].block_is_allowed[cu_ptr->mds_idx])
             assert(context_ptr->blk_skip_decision == EB_TRUE && "blocks that go beyond picture boundaries need skip decision mechanism with chroma on");
