@@ -51,6 +51,9 @@ extern "C" {
 #define EIGTH_PEL_MV                      0
 #define ALTREF_TF_EIGHTH_PEL_SEARCH       1 // Add 1/8 sub-pel search/compensation @ Temporal Filtering
 #define ALTREF_TF_ADAPTIVE_WINDOW_SIZE    1 // Add the ability to use dynamic/asymmetric window for AltRef temporal filtering, add the ability to derive the activity within past and future frames @ picture decision, and add a logic to derive window size from activity
+#define TF_KEY                            1 // Temporal Filtering  for Key frames. OFF for Screen Content.
+#define TFK_ALTREF_DYNAMIC_WINDOW         1 // Applying Dynamic window to key frame temporal filtering
+
 //FOR DEBUGGING - Do not remove
 #define NO_ENCDEC                         0 // bypass encDec to test cmpliance of MD. complained achieved when skip_flag is OFF. Port sample code from VCI-SW_AV1_Candidate1 branch
 
