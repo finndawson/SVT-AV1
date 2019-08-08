@@ -704,7 +704,8 @@ void psnr_calculations(
             buffer_y = picture_control_set_ptr->parent_pcs_ptr->save_enhanced_picture_ptr[0];
             buffer_cb = picture_control_set_ptr->parent_pcs_ptr->save_enhanced_picture_ptr[1];
             buffer_cr = picture_control_set_ptr->parent_pcs_ptr->save_enhanced_picture_ptr[2];
-        }else {
+        }
+        else {
             buffer_y = input_picture_ptr->buffer_y;
             buffer_cb = input_picture_ptr->buffer_cb;
             buffer_cr = input_picture_ptr->buffer_cr;

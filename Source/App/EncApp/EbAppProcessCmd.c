@@ -1104,11 +1104,11 @@ static void write_ivf_frame_header(EbConfig *config, uint32_t byte_count){
         fwrite(header, 1, IVF_FRAME_HEADER_SIZE, config->bitstream_file);
 }
 double get_psnr(double sse, double max){
-    double psnr = 100;
+    double psnr;
     if (sse == 0)
-        psnr = 100;
+        psnr = 10 * log10(max / (double)0.1);
     else
-        psnr = 10 * log10((double)max / (double)sse);
+        psnr = 10 * log10(max / sse);
 
     return psnr;
 }

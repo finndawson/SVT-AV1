@@ -1706,10 +1706,12 @@ void copy_pixels_with_origin(EbByte dst, int stride_dst,
 EbErrorType save_src_pic_buffers(PictureParentControlSet *picture_control_set_ptr_central){
 
     // allocate memory for the copy of the original enhanced buffer
-    for(int channel=0; channel<COLOR_CHANNELS; channel++) {
-        EB_MALLOC(picture_control_set_ptr_central->save_enhanced_picture_ptr[channel],
-                  picture_control_set_ptr_central->enhanced_picture_ptr->luma_size * sizeof(uint8_t));
-    }
+    EB_MALLOC(picture_control_set_ptr_central->save_enhanced_picture_ptr[C_Y],
+              picture_control_set_ptr_central->enhanced_picture_ptr->luma_size * sizeof(uint8_t));
+    EB_MALLOC(picture_control_set_ptr_central->save_enhanced_picture_ptr[C_U],
+              picture_control_set_ptr_central->enhanced_picture_ptr->chroma_size * sizeof(uint8_t));
+    EB_MALLOC(picture_control_set_ptr_central->save_enhanced_picture_ptr[C_V],
+              picture_control_set_ptr_central->enhanced_picture_ptr->chroma_size * sizeof(uint8_t));
 
     // copy buffers
 
@@ -1812,7 +1814,11 @@ void init_temporal_filtering(PictureParentControlSet **list_picture_control_set_
 
         picture_control_set_ptr_central->temporal_filtering_on = EB_TRUE; // set temporal filtering flag ON for current picture
 
-        save_src_pic_buffers(picture_control_set_ptr_central);
+        // save original source picture (to be replaced by the temporally filtered pic)
+        // if stat_report is enabled for PSNR computation
+        if(picture_control_set_ptr_central->sequence_control_set_ptr->static_config.stat_report){
+            save_src_pic_buffers(picture_control_set_ptr_central);
+        }
 
     }
     eb_release_mutex(picture_control_set_ptr_central->temp_filt_mutex);
