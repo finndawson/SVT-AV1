@@ -3204,7 +3204,7 @@ enum {
 #define FAST_MOVING_KF_GROUP_THRESH 5
 #if QPS_TUNING
 #define MEDIUM_MOVING_KF_GROUP_THRESH  30
-#if TFK_QPS_TUNING // A4
+#if TFK_QPS_TUNING
 #define STATIC_KF_GROUP_THRESH         70
 #define MAX_QPS_COMP_I                150
 #else
@@ -3401,7 +3401,7 @@ static int adaptive_qindex_calc(
         int max_qp_scaling_avg_comp_I = sequence_control_set_ptr->input_resolution < 2 ? (MAX_QPS_COMP_I >> 1) : MAX_QPS_COMP_I;
 #endif
 #if QPS_TUNING
-#if !TFK_QPS_TUNING // A1
+#if !TFK_QPS_TUNING
         // Update the complexity for very fast moving content.
         if (picture_control_set_ptr->parent_pcs_ptr->kf_zeromotion_pct <= FAST_MOVING_KF_GROUP_THRESH)
             picture_control_set_ptr->parent_pcs_ptr->qp_scaling_average_complexity = max_qp_scaling_avg_comp_I;
@@ -3412,7 +3412,7 @@ static int adaptive_qindex_calc(
             picture_control_set_ptr->parent_pcs_ptr->filtered_sse < LOW_FILTERED_THRESHOLD && picture_control_set_ptr->parent_pcs_ptr->filtered_sse_uv < LOW_FILTERED_THRESHOLD &&
             picture_control_set_ptr->parent_pcs_ptr->kf_zeromotion_pct > STATIC_KF_GROUP_THRESH)
             picture_control_set_ptr->parent_pcs_ptr->qp_scaling_average_complexity >>= 1;
-#if TFK_QPS_TUNING //A3
+#if TFK_QPS_TUNING
         // For the highly filtered ALT_REF pictures (next ALT_REF), increase the complexity/QP of the I_SLICE to save on rate
         if (picture_control_set_ptr->parent_pcs_ptr->filtered_sse + picture_control_set_ptr->parent_pcs_ptr->filtered_sse_uv >= (7 << 8))
             picture_control_set_ptr->parent_pcs_ptr->qp_scaling_average_complexity = max_qp_scaling_avg_comp_I;
