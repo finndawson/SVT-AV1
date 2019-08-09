@@ -26,6 +26,10 @@
 /************************************************
  * Defines
  ************************************************/
+#if TFK_ALTREF_DYNAMIC_WINDOW
+#define DYNAMIC_WINDOW_TH   50
+#endif
+
 #define  LAY0_OFF  0
 #define  LAY1_OFF  3
 #define  LAY2_OFF  5
@@ -2686,8 +2690,7 @@ void* picture_decision_kernel(void *input_ptr)
 
         while (queueEntryPtr->parent_pcs_wrapper_ptr != EB_NULL) {
 #if TF_KEY
-            if (
-                ((PictureParentControlSet *)(queueEntryPtr->parent_pcs_wrapper_ptr->object_ptr))->end_of_sequence_flag == EB_TRUE) {
+            if (((PictureParentControlSet *)(queueEntryPtr->parent_pcs_wrapper_ptr->object_ptr))->end_of_sequence_flag == EB_TRUE) {
                 framePasseThru = EB_TRUE;
             }
             else
@@ -3330,7 +3333,7 @@ void* picture_decision_kernel(void *input_ptr)
                                     uint32_t regionInPictureWidthIndex;
                                     uint32_t regionInPictureHeightIndex;
 
-                                    int ahd_th = (((sequence_control_set_ptr->seq_header.max_frame_width * sequence_control_set_ptr->seq_header.max_frame_height) * 50) / 100);
+                                    int ahd_th = (((sequence_control_set_ptr->seq_header.max_frame_width * sequence_control_set_ptr->seq_header.max_frame_height) * DYNAMIC_WINDOW_TH) / 100);
 
                                     // Accumulative histogram absolute differences between the central and future frame
                                     for (pic_itr = (index_center + actual_future_pics); pic_itr > index_center; pic_itr--) {
