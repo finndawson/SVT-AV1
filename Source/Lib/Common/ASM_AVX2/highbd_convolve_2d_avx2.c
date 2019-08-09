@@ -57,8 +57,8 @@ void eb_av1_highbd_convolve_2d_sr_avx2(const uint16_t *src, int32_t src_stride,
         _mm256_set1_epi16(bd == 10 ? 1023 : (bd == 12 ? 4095 : 255));
     const __m256i zero = _mm256_setzero_si256();
 
-    prepare_coeffs(filter_params_x, subpel_x_q4, coeffs_x);
-    prepare_coeffs(filter_params_y, subpel_y_q4, coeffs_y);
+    prepare_coeffs_8tap_avx2(filter_params_x, subpel_x_q4, coeffs_x);
+    prepare_coeffs_8tap_avx2(filter_params_y, subpel_y_q4, coeffs_y);
 
     for (j = 0; j < w; j += 8) {
         /* Horizontal filter */
