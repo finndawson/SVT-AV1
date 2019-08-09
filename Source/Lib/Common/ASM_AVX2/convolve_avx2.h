@@ -352,7 +352,7 @@ static INLINE __m256i convolve_round_avx2(const __m256i src) {
     return dst;
 }
 
-static INLINE __m128i convolve_lowbd_x_32_2tap_kernel_ssse3(const __m128i src,
+static INLINE __m128i convolve_lowbd_x_8_2tap_kernel_ssse3(const __m128i src,
     const __m128i *const coeffs) {
     __m128i res_16b;
 
@@ -361,7 +361,7 @@ static INLINE __m128i convolve_lowbd_x_32_2tap_kernel_ssse3(const __m128i src,
     return _mm_packus_epi16(res_16b, res_16b);
 }
 
-static INLINE __m128i convolve_lowbd_x_32_4tap_kernel_ssse3(const __m128i src[2],
+static INLINE __m128i convolve_lowbd_x_8_4tap_kernel_ssse3(const __m128i src[2],
     const __m128i coeffs[2]) {
     __m128i res_16b;
 

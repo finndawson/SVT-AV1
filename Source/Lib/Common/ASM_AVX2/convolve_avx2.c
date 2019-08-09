@@ -374,7 +374,7 @@ void eb_av1_convolve_x_sr_avx2(const uint8_t *src, int32_t src_stride,
                         s = _mm_cvtsi32_si128(*(const int32_t *)src_ptr);
                         s = _mm_insert_epi32(s, *(int32_t *)(src_ptr + src_stride), 2);
                         s = _mm_shuffle_epi8(s, c);
-                        const __m128i d = convolve_lowbd_x_32_2tap_kernel_ssse3(s, coeffs_128);
+                        const __m128i d = convolve_lowbd_x_8_2tap_kernel_ssse3(s, coeffs_128);
                         *(uint16_t *)dst = (uint16_t)_mm_cvtsi128_si32(d);
                         *(uint16_t *)(dst + dst_stride) = _mm_extract_epi16(d, 2);
 
@@ -392,7 +392,7 @@ void eb_av1_convolve_x_sr_avx2(const uint8_t *src, int32_t src_stride,
                         s = _mm_loadl_epi64((__m128i *)src_ptr);
                         s = _mm_loadh_epi64(src_ptr + src_stride, s);
                         s = _mm_shuffle_epi8(s, c);
-                        const __m128i d = convolve_lowbd_x_32_2tap_kernel_ssse3(s, coeffs_128);
+                        const __m128i d = convolve_lowbd_x_8_2tap_kernel_ssse3(s, coeffs_128);
                         xx_storel_32(dst, d);
                         *(int32_t *)(dst + dst_stride) = _mm_extract_epi32(d, 1);
 
@@ -594,7 +594,7 @@ void eb_av1_convolve_x_sr_avx2(const uint8_t *src, int32_t src_stride,
                 t = _mm_loadh_epi64(src_ptr + src_stride, t);
                 s[0] = _mm_shuffle_epi8(t, c0);
                 s[1] = _mm_shuffle_epi8(t, c1);
-                const __m128i d = convolve_lowbd_x_32_4tap_kernel_ssse3(s, coeffs_128);
+                const __m128i d = convolve_lowbd_x_8_4tap_kernel_ssse3(s, coeffs_128);
                 *(uint16_t *)dst = (uint16_t)_mm_cvtsi128_si32(d);
                 *(uint16_t *)(dst + dst_stride) = _mm_extract_epi16(d, 2);
 
@@ -611,7 +611,7 @@ void eb_av1_convolve_x_sr_avx2(const uint8_t *src, int32_t src_stride,
                 t = _mm_loadh_epi64(src_ptr + src_stride, t);
                 s[0] = _mm_shuffle_epi8(t, c0);
                 s[1] = _mm_shuffle_epi8(t, c1);
-                const __m128i d = convolve_lowbd_x_32_4tap_kernel_ssse3(s, coeffs_128);
+                const __m128i d = convolve_lowbd_x_8_4tap_kernel_ssse3(s, coeffs_128);
                 xx_storel_32(dst, d);
                 *(int32_t *)(dst + dst_stride) = _mm_extract_epi32(d, 1);
 
